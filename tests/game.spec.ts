@@ -4,7 +4,7 @@ test.setTimeout(240000);
 const code=()=>Math.random().toString(16).slice(2,10).toUpperCase().padEnd(8,'A');
 async function settled(page:Page){await page.bringToFront();await expect(page.locator('[data-ready]')).toHaveAttribute('data-ready','true',{timeout:45000});await expect(page.locator('.game-shell')).toHaveAttribute('data-moving','false',{timeout:30000});await page.waitForFunction(()=>document.fonts.status==='loaded'&&document.querySelector('[data-ready]')?.getAttribute('data-ready')==='true'&&document.querySelector('.game-shell')?.getAttribute('data-moving')==='false');}
 async function clickMesh(page:Page,name:string){
- await settled(page);const view=page.locator('.table-view');
+ await settled(page);await expect(page.locator('.game-shell')).toHaveAttribute('data-can-act','true');const view=page.locator('.table-view');
  await expect.poll(async()=>JSON.parse((await view.getAttribute('data-targets'))??'[]').some((t:{name:string})=>t.name===name)).toBe(true);
  const revision=Number(await page.locator('.game-shell').getAttribute('data-revision'));const target=JSON.parse((await view.getAttribute('data-targets'))!).find((t:{name:string})=>t.name===name),box=(await view.boundingBox())!;await page.mouse.click(box.x+target.x,box.y+target.y);await expect.poll(async()=>Number(await page.locator('.game-shell').getAttribute('data-revision')),{timeout:30000}).toBeGreaterThan(revision);
 }
