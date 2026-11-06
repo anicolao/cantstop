@@ -50,3 +50,14 @@ test('a phone creates a table with a companion and restores personal settings',a
   await page.reload();await settled(page);await page.getByRole('button',{name:'Settings',exact:true}).click();await expect(page.getByLabel('Animation speed',{exact:true})).toHaveValue('blazing');
  }finally{await context.close();}
 });
+
+test('a downloaded intent log opens as a read-only, seekable game',async({page})=>{
+ const {apply,initialState}=await import('../src/game/engine');let current=initialState();const log:import('../src/game/engine').Event[]=[];
+ const add=(actor:string,intent:import('../src/game/engine').Intent)=>{log.push({version:1,id:`import-${log.length+1}`,sequence:log.length+1,actor,intent});current=apply(current,actor,intent);};
+ add('alex',{type:'create',name:'Alex'});add('sam',{type:'join',name:'Sam'});add('alex',{type:'begin',seed:'read-only-log'});add('alex',{type:'roll'});add('alex',{type:'advance',pairing:0});add('alex',{type:'stop'});
+ await page.goto('/');await page.getByLabel('Import game log',{exact:true}).setInputFiles({name:'game.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(log))});await settled(page);
+ await expect(page.getByRole('dialog',{name:'Game history'})).toBeVisible();const view=page.locator('.table-view'),end=await view.getAttribute('data-pieces');
+ await page.getByRole('slider',{name:'Replay action',exact:true}).fill('3');await expect.poll(()=>view.getAttribute('data-pieces')).not.toBe(end);
+ await page.getByRole('slider',{name:'Replay action',exact:true}).fill('6');await expect(view).toHaveAttribute('data-pieces',end!);await page.getByLabel('Close history',{exact:true}).click();
+ await expect(page.getByText('Game log · read only',{exact:true})).toBeVisible();await expect(page.getByRole('button',{name:'Roll dice',exact:true})).toBeDisabled();
+});
