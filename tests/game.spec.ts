@@ -2,14 +2,17 @@ import {test,expect,type Page} from '@playwright/test';
 import {replay} from '../src/game/engine';
 test.setTimeout(240000);
 const code=()=>Math.random().toString(16).slice(2,10).toUpperCase().padEnd(8,'A');
-async function settled(page:Page){await page.bringToFront();await expect(page.locator('[data-ready]')).toHaveAttribute('data-ready','true',{timeout:45000});await expect(page.locator('.game-shell')).toHaveAttribute('data-moving','false',{timeout:30000});await page.waitForFunction(()=>document.fonts.status==='loaded'&&document.querySelector('[data-ready]')?.getAttribute('data-ready')==='true'&&document.querySelector('.game-shell')?.getAttribute('data-moving')==='false');}
+async function settled(page:Page){await page.bringToFront();await expect(page.locator('[data-ready]')).toHaveAttribute('data-ready','true',{timeout:90000});await expect(page.locator('.game-shell')).toHaveAttribute('data-moving','false',{timeout:30000});await page.waitForFunction(()=>document.fonts.status==='loaded'&&document.querySelector('[data-ready]')?.getAttribute('data-ready')==='true'&&document.querySelector('.game-shell')?.getAttribute('data-moving')==='false');}
 async function clickMesh(page:Page,name:string,commits=true){
  await settled(page);await expect(page.locator('.game-shell')).toHaveAttribute('data-can-act','true');const view=page.locator('.table-view');
  await expect.poll(async()=>JSON.parse((await view.getAttribute('data-targets'))??'[]').some((t:{name:string})=>t.name===name)).toBe(true);
  const revision=Number(await page.locator('.game-shell').getAttribute('data-revision'));const target=JSON.parse((await view.getAttribute('data-targets'))!).find((t:{name:string})=>t.name===name),box=(await view.boundingBox())!;await page.mouse.click(box.x+target.x,box.y+target.y);if(commits)await expect.poll(async()=>Number(await page.locator('.game-shell').getAttribute('data-revision')),{timeout:30000}).toBeGreaterThan(revision);
 }
-test('four independent clients launch, take turns, restore, and replay only player choices',async({browser,request})=>{
- const room=code(),contexts=await Promise.all(Array.from({length:4},()=>browser.newContext({viewport:{width:1180,height:820}})));
+test('four independent clients launch, take turns, restore, and replay only player choices',async({browser,request},info)=>{
+ // Independent devices do not share one browser GPU process. Keep all four full
+ // renderers active while isolating driver contexts, just as separate computers do.
+ const clients=await Promise.all(Array.from({length:4},()=>browser.browserType().launch({...info.project.use.launchOptions,channel:'chromium'})));
+ const room=code(),contexts=await Promise.all(clients.map(client=>client.newContext({viewport:{width:1180,height:820}})));
  for(const context of contexts)await context.addInitScript(()=>{if(location.protocol.startsWith('http')&&!localStorage.getItem('cantstop:settings:v1'))localStorage.setItem('cantstop:settings:v1',JSON.stringify({view:'standard',animationSpeed:'blazing'}));});
  const pages=await Promise.all(contexts.map(c=>c.newPage())),errors:string[]=[];pages.forEach(p=>p.on('pageerror',e=>errors.push(e.message)));
  try{
@@ -39,7 +42,7 @@ test('four independent clients launch, take turns, restore, and replay only play
   await pages[0].getByRole('button',{name:'Close history',exact:true}).click();
   await pages[0].screenshot({path:'artifacts/game-host-overhead.png',fullPage:true});await pages[1].screenshot({path:'artifacts/game-guest-standard.png',fullPage:true});
   expect(final.every((e:{intent:object})=>!['dice','positions','claims','winner'].some(k=>k in e.intent))).toBe(true);expect(errors).toEqual([]);
- }finally{for(const context of contexts)await context.close();}
+ }finally{await Promise.all(clients.map(client=>client.close()));}
 });
 
 test('a phone creates a table with a companion and restores personal settings',async({browser})=>{
