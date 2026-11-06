@@ -52,6 +52,10 @@
     const before=tableState,wasLoaded=loaded,after=replay(next);
     if(wasLoaded&&next.length<events.length)return;
     if(wasLoaded&&next.length===events.length&&events.some((e,i)=>e.id!==next[i]?.id)){error='This table has a different history. Reload to reconnect.';return;}
+    if(wasLoaded&&next.length===events.length+1){
+     const intent=next.at(-1)!.intent;
+     if(intent.type==='advance'){selected=intent.pairing;runnerColumn=intent.column;}
+    }
     if(wasLoaded&&next.length===events.length+1&&!document.hidden){step=transition(before,after,next.at(-1)!);time=0;}else if(!wasLoaded||next.length>events.length+1||document.hidden){step=null;time=0;}
     events=next;tableState=after;loaded=true;error='';
    },message=>{if(!closed)error=message;});repo=connection;
