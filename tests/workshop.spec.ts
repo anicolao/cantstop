@@ -19,6 +19,7 @@ test('native 3D plaques select, move, save, and pass the turn',async({page})=>{
  await nativeClick(page,'ROLL DICE');await expect(page.locator('.table-view')).toHaveAttribute('data-kind',/roll|bust/);
 });
 test('every motion can be scrubbed backward, and reduced motion settles immediately',async({page})=>{
+ test.setTimeout(180000); // Full-quality software rendering visits every material and motion.
  const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
  await ready(page,'/dev/animations?scene=advance');
  await seek(page,0);const start=await page.locator('.table-view').getAttribute('data-runners');
