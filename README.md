@@ -48,7 +48,7 @@ Unused black pawns wait in three slots on a round ivory disk with a walnut-and-b
 
 ## Model and presentation boundary
 
-This is a visual prototype, **not the production multiplayer game**. It has no accounts, relay, persistence, seat invitations, or hosted deployment.
+The animation lab uses local review fixtures. The playable game adds identities, persistent tables, seat invitations, and deterministic intent replay while sharing the same model and renderer.
 
 - `src/lib/model/game.ts` is a pure, versioned prototype model. A starting seed and roll index reproduce dice. Intents record roll, pairing/destination choice, or stop; no animation time is part of the model. The four-seat fixtures make edge states easy to review.
 - `src/lib/presentation/catalog.ts` builds examples by applying legal intents to immutable review fixtures. Every computed target is derived from its intent. Fixtures are review snapshots, not a proposed production event format.
@@ -71,6 +71,7 @@ The source design is [UX_DESIGN.md](UX_DESIGN.md); paintings and their prompts a
 ```sh
 bun run check
 bun run test:unit
+bun run test:firebase
 bun run test:e2e
 bun run build
 ```
