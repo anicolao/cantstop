@@ -1,0 +1,44 @@
+<script lang="ts">
+ import {Canvas} from '@threlte/core';
+ import {PCFSoftShadowMap,ACESFilmicToneMapping} from 'three';
+ import Scene from '../scene/Scene.svelte';
+ import type {Frame} from '../presentation/frame';
+ import {pairingNumbers} from '../presentation/choices';
+ import {pairings} from '../model/game';
+ import {FINISH} from '../presentation/finish';
+ import {PIECE_SCALE,type BoardFraming} from '../presentation/layout';
+ let {frame,phone=false,selected=2,runnerColumn,focus='table',preset='table',lowAngle=42,orbit=false,onPair=()=>{},onDestination=()=>{},onMove=()=>{},onRoll=()=>{},onStop=()=>{}}:{frame:Frame;phone?:boolean;selected?:number;runnerColumn?:number;focus?:string;preset?:string;lowAngle?:number;orbit?:boolean;onPair?:(n:number)=>void;onDestination?:(n:number)=>void;onMove?:()=>void;onRoll?:()=>void;onStop?:()=>void}=$props();
+ let ready=$state(false),failure=$state(false);
+ let framing=$state<BoardFraming>();
+ let targets=$state<{name:string;x:number;y:number}[]>([]);
+ const available=$derived(pairings(frame.state));
+</script>
+<div class="table-view" data-board-framing={JSON.stringify(framing)} data-track-finish="ivory" data-runner-colour={FINISH.runner} data-player-colours={JSON.stringify(FINISH.players)} data-piece-scale={PIECE_SCALE} data-pieces={JSON.stringify(frame.pieces)} data-targets={JSON.stringify(targets)} data-runners={JSON.stringify(frame.pieces.filter(p=>p.runner&&p.onBoard).map(p=>({id:p.id,position:p.position,opacity:p.opacity})))} data-ready={ready} data-kind={frame.kind} data-phase={frame.state.phase} data-phone={phone} data-render-quality="shared" data-piece-count={frame.pieces.length}>
+ <svelte:boundary onerror={(error)=>{failure=true;console.error(error);}}>
+  <Canvas toneMapping={ACESFilmicToneMapping} shadows={PCFSoftShadowMap} dpr={Math.min(window.devicePixelRatio,1.75)} renderMode="on-demand">
+   <Scene {frame} {phone} {selected} {runnerColumn} {focus} {preset} {lowAngle} {orbit} {onPair} {onDestination} {onMove} {onRoll} {onStop} onFraming={(value)=>framing=value} onTargets={(value)=>targets=value} onReady={()=>ready=true}/>
+  </Canvas>
+  {#snippet failed()}<div class="load-message">This 3D scene needs WebGL.<br><small>Try a browser with hardware acceleration enabled.</small></div>{/snippet}
+ </svelte:boundary>
+ <div class="scene-vignette"></div>
+ {#if !ready&&!failure}<div class="load-message"><span class="loading-diamond">◇</span> Preparing the table…<small>Walnut · lacquer · ruby · ivory</small></div>{/if}
+ {#if ready&&focus==='table'}
+  <div class="scene-caption" class:phone aria-live="polite"><p>{frame.label}</p><small>{frame.detail}</small></div>
+ {/if}
+ {#if frame.dim>0}<div class="connection-shade" style:opacity={frame.dim}></div>{/if}
+ <div class="keyboard-controls" aria-label="Game controls">
+  {#if frame.state.phase==='choose'}
+   {#each available as p}<button disabled={!p.variants.length} aria-pressed={selected===p.index} onfocus={()=>onPair(p.index)} onclick={()=>onPair(p.index)}>Pair {pairingNumbers(frame.state,p,p.index===selected?runnerColumn:undefined).map(n=>`${n.number}${n.inactive?` (${n.reason})`:''}`).join(' and ')}</button>{/each}
+   {#each available.find(p=>p.index===selected)?.variants??[] as v}
+    {#if (available.find(p=>p.index===selected)?.variants.length??0)>1}<button aria-pressed={runnerColumn===v.column} onclick={()=>onDestination(v.column!)}>Use runner on {v.column}</button>{/if}
+   {/each}
+   <button disabled={!available.find(p=>p.index===selected)?.variants.length||((available.find(p=>p.index===selected)?.variants.length??0)>1&&runnerColumn===undefined)} onclick={onMove}>Move selected pairing</button>
+  {:else if frame.state.phase!=='finished'}
+   <button onclick={onRoll}>{frame.state.phase==='ready'?'Roll dice':'Roll again'}</button>
+   {#if frame.state.phase==='decide'}<button onclick={onStop}>Stop and save</button>{/if}
+  {/if}
+ </div>
+</div>
+<style>
+ .scene-vignette{position:absolute;inset:0;pointer-events:none;box-shadow:inset 0 0 90px 25px #04101155;background:radial-gradient(ellipse at 46% 38%,transparent 30%,#06121b40 100%)}.table-view{width:100%;height:100%;position:relative;overflow:hidden;background:#102529;touch-action:manipulation;container-type:size}.table-view :global(canvas){display:block;outline:none}.scene-caption{position:absolute;top:22px;left:22%;right:22%;text-align:center;pointer-events:none;color:#f5e1bb;text-shadow:0 2px 12px #000;z-index:1}.scene-caption p{font-family:Georgia,serif;font-size:21px;margin:0}.scene-caption small{display:block;font-size:11px;letter-spacing:.04em;color:#e0ceaaa3;margin-top:7px}.scene-caption.phone{top:15px;left:5%;right:5%}.scene-caption.phone p{font-size:19px}.scene-caption.phone small{font-size:10px}.load-message{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px;font:20px Georgia,serif;background:#102529;color:#edd7a9}.load-message small{font:11px Arial,sans-serif;letter-spacing:.12em;color:#c6b99280}.loading-diamond{font-size:46px;color:#e4b76a;animation:breathe 1.2s infinite alternate}@container (min-aspect-ratio:6/5){.scene-caption.phone{left:57%;right:4%;top:16px}.scene-caption.phone small{display:none}}@keyframes breathe{to{opacity:.3;transform:rotate(90deg)}}.connection-shade{position:absolute;inset:0;background:#07141c;pointer-events:none}.keyboard-controls{position:absolute;width:1px;height:1px;clip-path:inset(50%);overflow:hidden}.keyboard-controls:focus-within{width:auto;height:auto;clip-path:none;left:12px;right:12px;bottom:12px;display:flex;gap:8px;flex-wrap:wrap;background:#12282fee;padding:12px;z-index:4}.keyboard-controls button{color:#f6e1bd;background:#57391e;border:1px solid #ccae75;padding:10px}
+</style>

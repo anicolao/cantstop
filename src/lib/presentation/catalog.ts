@@ -1,0 +1,30 @@
+import { apply, fixture, seedFor, type State, type Intent } from '../model/game';
+export type Transition = { before:State; after:State; intent?:Intent; kind:string; duration:number };
+export type Example = {id:string;group:string;name:string;description:string;beats:string[];steps:Transition[]};
+const base=fixture(),chosen=apply(base,{type:'roll'}),advanced=apply(chosen,{type:'advance',pairing:2});
+function step(before:State,intent:Intent,kind:string,duration:number):Transition{return {before,after:apply(before,intent),intent,kind,duration};}
+const summitBase=fixture({runners:{6:10,7:7,8:3},saved:[{6:8,7:5,8:2},...base.saved.slice(1)]});
+const summitRoll=apply(summitBase,{type:'roll'}),summit=apply(summitRoll,{type:'advance',pairing:1});
+const winner=fixture({runners:{6:11,7:7,8:3},claims:[[4,10],[2],[12],[]]});
+const turnInitial=fixture({phase:'ready',runners:{}});
+const noPawnChoice=fixture({phase:'choose',runners:{6:4,7:7,9:3}});
+const closedChoice=fixture({phase:'choose',runners:{},dice:[2,3,4,6]});
+const turnRoll=apply(turnInitial,{type:'roll'}),turnMove=apply(turnRoll,{type:'advance',pairing:2});
+export const examples:Example[]=[
+ {id:'ready',group:'The turn',name:'Ready to climb',description:'Three black pawns wait on their ivory podium, to the lower left of the board. Roll to begin.',beats:['Three runners ready','Roll the dice','Begin your climb'],steps:[{before:turnInitial,after:turnInitial,kind:'ready',duration:1.8}]},
+ {id:'pair',group:'The turn',name:'Choose your climb',description:'Four real dice. Three pairings. Preview two steps on 7 before making your move.',beats:['Read the roll','Pair the dice','Light the destination'],steps:[{before:chosen,after:chosen,kind:'preview',duration:2.8}]},
+ {id:'roll',group:'The turn',name:'Roll the dice',description:'The four ruby dice tumble, bounce, and settle. The result comes from the seeded model; the animation only reveals it.',beats:['Lift & tumble','Contact & bounce','Settle to 1 · 2 · 5 · 6'],steps:[step(base,{type:'roll'},'roll',2.8)]},
+ {id:'advance',group:'The turn',name:'Move 7 twice',description:'A single black runner takes two distinct steps. Saved pieces stay exactly where they were.',beats:['First step','Second step','Six steps at risk'],steps:[step(chosen,{type:'advance',pairing:2},'advance',2.4)]},
+ {id:'save',group:'The turn',name:'Stop & save',description:'Your permanent pieces travel to the runners. Black runners return to their ivory podium, then the turn passes.',beats:['Save positions','Return runners','Pass the turn'],steps:[step(advanced,{type:'stop'},'save',3.1)]},
+ {id:'bust',group:'Turning points',name:'A roll too far',description:'Four 1s cannot move on a closed 2. Only this turn’s progress returns to the podium; saved pieces remain.',beats:['An impossible roll','Progress slips away','Saved pieces remain'],steps:[step(fixture({seed:seedFor([1,1,1,1])}),{type:'roll'},'bust',3.6)]},
+ {id:'summit',group:'Turning points',name:'The summit is still at risk',description:'The runner reaches the top of 6. The summit glows, but it does not belong to you until you stop.',beats:['Climb the final step','Reach the summit','Stop to claim'],steps:[step(summitRoll,{type:'advance',pairing:1},'advance',2.4)]},
+ {id:'claim',group:'Turning points',name:'Claim a column',description:'Saving the summit closes column 6. The owner seal stays; competing pieces leave that track.',beats:['Place the owner seal','Close the column','Pass the dice'],steps:[step(summit,{type:'stop'},'claim',3.3)]},
+ {id:'win',group:'Turning points',name:'The third summit',description:'A third saved summit ends the race. A restrained celebration leaves the final board in view.',beats:['Save the summit','Claim number three','Ari wins'],steps:[step(winner,{type:'stop'},'win',3.8)]},
+ {id:'closed-column',group:'Close inspection',name:'A closed number',description:'The pairing 5 + 10 remains legal: closed 10 is crossed out, and only 5 takes a pawn.',beats:['10 is closed','Pair 5 + 10','Only 5 takes a pawn'],steps:[{before:closedChoice,after:closedChoice,kind:'preview',duration:2.8}]},
+ {id:'no-pawn',group:'Close inspection',name:'No spare pawns',description:'All three pawns are committed. In 6 + 8, only the existing pawn on 6 can move; 8 is inactive.',beats:['Three pawns committed','8 has no pawn','Advance 6 only'],steps:[{before:noPawnChoice,after:noPawnChoice,kind:'preview',duration:2.8}]},
+ {id:'last-runner',group:'Close inspection',name:'One runner, two destinations',description:'One unused runner could start 6 or 8. Choose the destination explicitly before committing.',beats:['One runner remains','Choose 6 or 8','Preview before committing'],steps:[{before:fixture({phase:'choose',runners:{7:7,9:3}}),after:fixture({phase:'choose',runners:{7:7,9:3}}),kind:'preview',duration:2.8}]},
+ {id:'reconnect',group:'Close inspection',name:'Return to the table',description:'A brief interruption keeps the table recognizable and restores the very same roll and choice.',beats:['Quiet the scene','Rejoin the table','The same decision'],steps:[{before:chosen,after:chosen,kind:'reconnect',duration:3.6}]},
+ {id:'turn',group:'The turn',name:'A complete turn',description:'An uninterrupted example, from the first throw to two steps on 7, a save, and the next player.',beats:['Roll','Move twice','Save & pass'],steps:[step(turnInitial,{type:'roll'},'roll',2.8),step(turnRoll,{type:'advance',pairing:2},'advance',2.4),step(turnMove,{type:'stop'},'save',3.1)]}
+];
+export const durationOf=(example:Example)=>Math.round(example.steps.reduce((n,s)=>n+s.duration,0)*1000)/1000;
+export function atTime(example:Example,time:number){let offset=0;for(const [i,s] of example.steps.entries()){if(time<offset+s.duration||i===example.steps.length-1)return {...s,time:Math.max(0,Math.min(s.duration,time-offset)),index:i,offset};offset+=s.duration;}throw new Error('Empty animation');}
