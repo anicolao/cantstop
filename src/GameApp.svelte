@@ -116,7 +116,7 @@
  function nextCompanion(){const names=['Bea','Cal','Dev'];const botName=names.find(n=>!tableState.players.some(p=>p.name===n))??'Companion';void send({type:'invite-bot',id:`bot-${randomId()}`,name:botName});}
 </script>
 <svelte:head><title>Can’t Stop{room?` · ${room}`:''}</title></svelte:head>
-<div class="game-shell" data-game-phase={tableState.phase} data-revision={tableState.revision} data-moving={moving} data-actor={viewer}>
+<div class="game-shell" data-game-phase={tableState.phase} data-revision={tableState.revision} data-moving={moving} data-can-act={canAct} data-actor={viewer}>
  <span class="connection-status" role="status" data-status={loaded?'synced':'connecting'}>{loaded?'Table connected':'Connecting'}</span>
  <header class="game-topbar">
   <a class="game-brand" href={import.meta.env.BASE_URL}>CAN’T STOP</a>
