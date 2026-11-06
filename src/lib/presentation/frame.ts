@@ -63,10 +63,11 @@ export function sample(step:Transition,time:number,reduced=false):Frame {
      return piece;
    });
    for(const [c,end] of Object.entries(before.runners))if(!before.saved[before.active][+c])pieces.push({id:`new-save-${c}`,column:+c,position:markerPoint(after,+c,end,before.active),color:FINISH.players[before.active],runner:false,opacity:move,scale:PIECE_SCALE,owner:before.active,onBoard:true});
-   label=kind==='win'?'Ari wins.':kind==='claim'?'A summit, made yours.':'Progress, kept.';
-   detail=kind==='win'?'Three saved summits. One well-timed stop.':kind==='claim'?'Column 6 is closed to everyone.':'Your runners return to their ivory podium.';
+   label=kind==='win'?'Three summits. Victory.':kind==='claim'?'A summit, made yours.':'Progress, kept.';
+   const claimed=after.claims.flat().filter(c=>!before.claims.flat().includes(c));
+   detail=kind==='win'?'Three saved summits. One well-timed stop.':kind==='claim'?`Column ${claimed.join(' & ')} is closed to everyone.`:'Your runners return to their ivory podium.';
    if(p>=1)pieces=staticPieces(after);
-   lightColumn=kind==='win'||kind==='claim'?6:undefined;
+   lightColumn=kind==='win'||kind==='claim'?claimed[0]:undefined;
  }
  if(kind==='bust'){
    const drop=ramp(t,2,3.15);
@@ -74,7 +75,7 @@ export function sample(step:Transition,time:number,reduced=false):Frame {
    label=t<1.9?'One more roll…':'Bust.';detail=t<1.9?'The dice have the last word.':'This turn is lost. Saved positions remain.';
    if(p>=1)pieces=staticPieces(after);
  }
- if(kind==='roll'){label=t<2?'One more roll…':'Choose your climb';detail=t<2?'Four dice. Three possibilities.':'1 · 2 · 5 · 6';}
+ if(kind==='roll'){label=t<2?'One more roll…':'Choose your climb';detail=t<2?'Four dice. Three possibilities.':after.dice.join(' · ');}
  if(kind==='reconnect'){label=p<.7?'Rejoining your table…':'Right where you left off.';detail=p<.7?'Your roll and decision are preserved.':'The same dice. The same choice.';}
  return {state,pieces,dice:isRoll?after.dice:before.dice,diceProgress:isRoll?ramp(t,.15,2):1,kind,progress:p,lightColumn,label,detail,dim:kind==='reconnect'?.65*Math.sin(p*Math.PI):0,claims:p>.65?after.claims:before.claims};
 }

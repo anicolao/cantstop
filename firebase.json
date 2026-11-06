@@ -1,0 +1,5 @@
+{
+ "firestore":{"rules":"firestore.rules","database":"(default)","location":"northamerica-northeast2"},
+ "auth":{"providers":{"anonymous":true}},
+ "emulators":{"firestore":{"host":"127.0.0.1","port":8199,"websocketPort":9300},"auth":{"host":"127.0.0.1","port":9299},"ui":{"enabled":false},"singleProjectMode":true}
+}

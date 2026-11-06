@@ -4,7 +4,7 @@
  import {OrbitControls} from 'three/examples/jsm/controls/OrbitControls.js';
  import {onMount,untrack} from 'svelte';
  import {BOARD_FACE} from '../presentation/layout';
- let {phone=false,preset='table',lowAngle=42,focus='table',orbit=false}:{phone?:boolean;preset?:string;lowAngle?:number;focus?:string;orbit?:boolean}=$props();
+ let {phone=false,preset='table',lowAngle=60,focus='table',orbit=false}:{phone?:boolean;preset?:string;lowAngle?:number;focus?:string;orbit?:boolean}=$props();
  const {size,renderer,invalidate}=useThrelte();
  const camera=new OrthographicCamera(-10,10,9,-9,.1,160);
  let controls:OrbitControls|undefined;
@@ -15,7 +15,7 @@
   const target=new Vector3(0,0,landscape?.25:phone?.25:.9);
   let span=landscape?Math.max(12.4,21/aspect):phone?Math.max(19.5,9/aspect):Math.max(16.3,19/aspect);
   if(focus!=='table'){target.set(0,.5,focus==='board'?BOARD_FACE.centreZ:0);span=focus==='board'?Math.max(13.7,15.5/aspect):focus==='dice'?Math.max(5.8,8.8/aspect):focus==='surface'?Math.max(7.6,9.8/aspect):Math.max(4.8,6.8/aspect);}
-  const elevation=(preset==='overhead'?89.8:preset==='low'?Math.max(15,Math.min(80,lowAngle)):phone?78:58)*Math.PI/180;
+  const elevation=(preset==='overhead'?89.8:preset==='low'?Math.max(15,Math.min(80,lowAngle)):phone?78:60)*Math.PI/180;
   if(!phone&&focus==='table'){
    // Fit the whole desktop arrangement, including the near-edge pairing tabs
    // and plaque bevels. Overhead needs more depth than the tilted table camera.
