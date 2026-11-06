@@ -3,10 +3,10 @@ import {replay} from '../src/game/engine';
 test.setTimeout(240000);
 const code=()=>Math.random().toString(16).slice(2,10).toUpperCase().padEnd(8,'A');
 async function settled(page:Page){await page.bringToFront();await expect(page.locator('[data-ready]')).toHaveAttribute('data-ready','true',{timeout:45000});await expect(page.locator('.game-shell')).toHaveAttribute('data-moving','false',{timeout:30000});await page.waitForFunction(()=>document.fonts.status==='loaded'&&document.querySelector('[data-ready]')?.getAttribute('data-ready')==='true'&&document.querySelector('.game-shell')?.getAttribute('data-moving')==='false');}
-async function clickMesh(page:Page,name:string){
+async function clickMesh(page:Page,name:string,commits=true){
  await settled(page);await expect(page.locator('.game-shell')).toHaveAttribute('data-can-act','true');const view=page.locator('.table-view');
  await expect.poll(async()=>JSON.parse((await view.getAttribute('data-targets'))??'[]').some((t:{name:string})=>t.name===name)).toBe(true);
- const revision=Number(await page.locator('.game-shell').getAttribute('data-revision'));const target=JSON.parse((await view.getAttribute('data-targets'))!).find((t:{name:string})=>t.name===name),box=(await view.boundingBox())!;await page.mouse.click(box.x+target.x,box.y+target.y);await expect.poll(async()=>Number(await page.locator('.game-shell').getAttribute('data-revision')),{timeout:30000}).toBeGreaterThan(revision);
+ const revision=Number(await page.locator('.game-shell').getAttribute('data-revision'));const target=JSON.parse((await view.getAttribute('data-targets'))!).find((t:{name:string})=>t.name===name),box=(await view.boundingBox())!;await page.mouse.click(box.x+target.x,box.y+target.y);if(commits)await expect.poll(async()=>Number(await page.locator('.game-shell').getAttribute('data-revision')),{timeout:30000}).toBeGreaterThan(revision);
 }
 test('four independent clients launch, take turns, restore, and replay only player choices',async({browser,request})=>{
  const room=code(),contexts=await Promise.all(Array.from({length:4},()=>browser.newContext({viewport:{width:1180,height:820}})));
@@ -27,7 +27,8 @@ test('four independent clients launch, take turns, restore, and replay only play
   await clickMesh(pages[0],'ROLL DICE');await settled(pages[0]);
   const rolled=await (await request.get(`/api/tables/${room}`)).json(),position=replay(rolled);
   if(position.game!.phase==='choose'){
-   const targets=JSON.parse((await pages[0].locator('.table-view').getAttribute('data-targets'))!);const move=targets.find((t:{name:string})=>t.name.startsWith('MOVE '));expect(move).toBeTruthy();await clickMesh(pages[0],move.name);await settled(pages[0]);await clickMesh(pages[0],'STOP & SAVE');
+   const {pairings}=await import('../src/lib/model/game');const pair=pairings(position.game!)[0];await clickMesh(pages[0],pair.sums.join(' + '),false);await expect(pages[0].locator('.table-view')).toHaveAttribute('data-selected-pairing','0');
+   const targets=JSON.parse((await pages[0].locator('.table-view').getAttribute('data-targets'))!);const move=targets.find((t:{name:string})=>t.name.startsWith('MOVE '));expect(move).toBeTruthy();await clickMesh(pages[0],move.name);await settled(pages[0]);for(const page of pages)await expect(page.locator('.table-view')).toHaveAttribute('data-selected-pairing','0');await clickMesh(pages[0],'STOP & SAVE');
   }
   for(const page of pages)await settled(page);
   const final=await (await request.get(`/api/tables/${room}`)).json(),restored=replay(final);expect(restored.game!.active).toBe(1);
