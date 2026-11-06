@@ -4,7 +4,7 @@ export type Surfaces={wood:Texture;woodNormal:Texture;woodRough:Texture;clothNor
 export async function loadSurfaces():Promise<Surfaces>{
  const loader=new TextureLoader();
  const names=['walnut-color','walnut-normal','walnut-roughness','cloth-normal','cloth-roughness'];
- const maps=await Promise.all(names.map(n=>loader.loadAsync(`/materials/${n}.jpg`)));
+ const maps=await Promise.all(names.map(n=>loader.loadAsync(`${import.meta.env.BASE_URL}materials/${n}.jpg`)));
  for(const [i,t] of maps.entries()){t.anisotropy=8;t.wrapS=t.wrapT=RepeatWrapping;if(i===0)t.colorSpace=SRGBColorSpace;if(i>=3)t.repeat.set(20,20);}
  return {wood:maps[0],woodNormal:maps[1],woodRough:maps[2],clothNormal:maps[3],clothRough:maps[4]};
 }

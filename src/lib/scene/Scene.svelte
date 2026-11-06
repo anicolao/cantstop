@@ -14,7 +14,7 @@
  import {pairingNumbers} from '../presentation/choices';
  import {pairings,PLAYERS,lengthOf} from '../model/game';
  import Camera from './Camera.svelte';import Board from './Board.svelte';import Token from './Token.svelte';import Die from './Die.svelte';import Plaque from './Plaque.svelte';import Inscription from './Inscription.svelte';
- let {frame,phone=false,selected=2,runnerColumn,focus='table',preset='table',lowAngle=42,orbit=false,onPair=()=>{},onDestination=()=>{},onMove=()=>{},onRoll=()=>{},onStop=()=>{},onReady=()=>{},onTargets=()=>{},onFraming=()=>{}}:{frame:Frame;phone?:boolean;selected?:number;runnerColumn?:number;focus?:string;preset?:string;lowAngle?:number;orbit?:boolean;onPair?:(n:number)=>void;onDestination?:(n:number)=>void;onMove?:()=>void;onRoll?:()=>void;onStop?:()=>void;onReady?:()=>void;onFraming?:(framing:BoardFraming)=>void;onTargets?:(targets:{name:string;x:number;y:number}[])=>void}=$props();
+ let {frame,phone=false,selected=2,runnerColumn,focus='table',preset='table',lowAngle=60,players=PLAYERS,orbit=false,onPair=()=>{},onDestination=()=>{},onMove=()=>{},onRoll=()=>{},onStop=()=>{},onReady=()=>{},onTargets=()=>{},onFraming=()=>{}}:{frame:Frame;phone?:boolean;selected?:number;runnerColumn?:number;focus?:string;preset?:string;lowAngle?:number;players?:{name:string}[];orbit?:boolean;onPair?:(n:number)=>void;onDestination?:(n:number)=>void;onMove?:()=>void;onRoll?:()=>void;onStop?:()=>void;onReady?:()=>void;onFraming?:(framing:BoardFraming)=>void;onTargets?:(targets:{name:string;x:number;y:number}[])=>void}=$props();
  const {scene,renderer,invalidate,camera,size}=useThrelte();interactivity();
  let lib=$state.raw<Library>();let ready=$state(false);
  const table=slab(outline(28,25,.9),.25,.22),mat=slab(outline(24,21,.65),.06,.09);
@@ -71,7 +71,7 @@
  onMount(()=>{
   let disposed=false,surfaces:Surfaces|undefined,environment:WebGLRenderTarget|undefined;
   scene.background=new Color('#102529');renderer.setClearColor('#102529');
-  void Promise.all([loadSurfaces(),new HDRLoader().loadAsync('/materials/studio.hdr')]).then(([maps,hdr])=>{
+  void Promise.all([loadSurfaces(),new HDRLoader().loadAsync(`${import.meta.env.BASE_URL}materials/studio.hdr`)]).then(([maps,hdr])=>{
    if(disposed){Object.values(maps).forEach(t=>t.dispose());hdr.dispose();return;}
    surfaces=maps;const pmrem=new PMREMGenerator(renderer);environment=pmrem.fromEquirectangular(hdr);hdr.dispose();pmrem.dispose();scene.environment=environment.texture;scene.environmentIntensity=.4;
    lib=materials(maps);ready=true;invalidate();requestAnimationFrame(()=>requestAnimationFrame(onReady));
@@ -95,7 +95,7 @@
   </T.Group>
  {/if}
  {#if focus==='table'}
-  {#each PLAYERS as player,i}
+  {#each players as player,i}
    {@const x=landscape?[-8.3,-.1,-10.4,-.1][i]:phone?[-3.3,-1.1,1.1,3.3][i]:[-6.9,6.9,-7.6,7.6][i]}
    {@const z=landscape?[-4.4,-4.4,3.7,3.7][i]:phone?[-8.05,-8.05,-8.05,-8.05][i]:[-5.85,-5.85,3.65,3.65][i]}
    <T.Group position={[x,0,z]} scale={phone&&!landscape?.65:phone?.88:1}>
@@ -103,7 +103,7 @@
     <T.Mesh position.y={.12}><!-- Medal is horizontal, unlike a UI badge. -->
      <T.CylinderGeometry args={[.58,.58,.07,64]}/><T.MeshPhysicalMaterial color={FINISH.players[i]} roughness={.27} metalness={.25} clearcoat={.8}/>
     </T.Mesh>
-    <Inscription text={['A','B','C','D'][i]} position={[0,.23,0]} width={.75} height={.70}/>
+    <Inscription text={player.name.trim().slice(0,1).toUpperCase()} position={[0,.23,0]} width={.75} height={.70}/>
     <Plaque {lib} text={`${player.name.toUpperCase()}   ${frame.claims[i].length}/3`} position={[0,.015,.98]} width={phone&&!landscape?3.05:phone?2.5:2.9} depth={.65} selected={frame.state.active===i} interactive={false}/>
     {#each Array.from({length:frame.claims[i].length}) as _,j}<Token {lib} color={FINISH.players[i]} position={[(j-.5)*.6,.02,1.65]} scale={.8} owner={i}/>{/each}
    </T.Group>
@@ -134,7 +134,7 @@
    <Plaque {lib} text={moveText} position={[landscape?5.5:phone?0:4.0,.04,(landscape?1.95:phone?9.05:6.35)+(ambiguous?(phone&&!landscape?.4:1.3):0)]} width={phone?7.05:5.45} depth={ambiguous&&phone&&!landscape?.85:1.1} selected disabled={!variant||(ambiguous&&runnerColumn===undefined)} onactivate={onMove}/>
    <Inscription text={riskText} position={[landscape?5.5:phone?0:4,.08,phone&&!landscape&&ambiguous?9.95:(landscape?3.0:phone?9.95:7.6)+(ambiguous?1.3:0)]} width={phone?5:4.4} height={.40}/>
   {:else if frame.state.phase==='finished'}
-   <Plaque {lib} text="THREE SUMMITS. ARI WINS." position={[landscape?5.5:phone?0:4,.04,landscape?2:phone?8.15:6.7]} width={phone?7:6.3} depth={1.05} selected/>
+   <Plaque {lib} text={`THREE SUMMITS. ${players[frame.state.active]?.name.toUpperCase()} WINS.`} position={[landscape?5.5:phone?0:4,.04,landscape?2:phone?8.15:6.7]} width={phone?7:6.3} depth={1.05} selected/>
   {:else}
    <Plaque {lib} text={frame.state.phase==='ready'?'ROLL DICE':'STOP & SAVE'} position={[landscape?5.5:phone?0:4.0,.04,landscape?1.25:phone?8.05:6.25]} width={phone?7.05:5.45} depth={1.0} selected onactivate={frame.state.phase==='ready'?onRoll:onStop}/>
    {#if frame.state.phase!=='ready'}<Plaque {lib} text="ROLL AGAIN" position={[landscape?5.5:phone?0:4.0,.04,landscape?2.8:phone?9.15:7.85]} width={phone?7.05:5.45} depth={.95} onactivate={onRoll}/>{/if}

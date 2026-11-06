@@ -368,3 +368,7 @@ For visual review, inspect desktop, small phone, tablet in both orientations, ph
 5. **Scope:** accept invite-only live play, local shared play, and the guided lesson as the first complete experience.
 
 The current review step is the desktop and phone component gallery and animation lab. Review the actual rendered objects, framing, interaction, and motion against these paintings before expanding to shared tabletop and TV. Full trusted-client event sourcing, networking, persistence, and delivery milestones belong in a separate implementation discussion.
+
+## Approved implementation baseline
+
+The current maple, ivory, lacquer, walnut, dark player pieces, square board and pawn podium are approved for this implementation. The playable game defaults to a 60° tilt. Personal settings offer an overhead view and Standard, Fast, or Blazing animations. Those settings do not enter the player-action history. The reviewed lab and gallery remain separate routes using the same renderer and motion sampler as the full game. See [docs/GAME.md](docs/GAME.md) for the replay and multiplayer contract.

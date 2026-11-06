@@ -1,0 +1,64 @@
+rules_version = '2';
+service cloud.firestore {
+ match /databases/{database}/documents {
+  function signedIn(){return request.auth!=null;}
+  function table(scope,room){return /databases/$(database)/documents/previews/$(scope)/tables/$(room);}
+  function event(scope,room,sequence){return /databases/$(database)/documents/previews/$(scope)/tables/$(room)/events/$(string(sequence));}
+  function intent(i){
+   return i is map && (
+    (i.type in ['create','join'] && i.keys().hasOnly(['type','name']) && i.name is string && i.name.size()>0 && i.name.size()<=24 && i.name.matches('.*\\S.*'))
+    || (i.type=='invite-bot' && i.keys().hasOnly(['type','id','name']) && i.id is string && i.id.matches('bot-[A-Za-z0-9_-]{1,80}') && i.name is string && i.name.size()>0 && i.name.size()<=24 && i.name.matches('.*\\S.*'))
+    || (i.type=='begin' && i.keys().hasOnly(['type','seed']) && i.seed is string && i.seed.size()>0 && i.seed.size()<=96)
+    || (i.type=='advance' && i.keys().hasAll(['type','pairing']) && i.keys().hasOnly(['type','pairing','column']) && i.pairing is int && i.pairing>=0 && i.pairing<=2 && (!('column' in i) || (i.column is int && i.column>=2 && i.column<=12)))
+    || (i.type in ['roll','stop'] && i.keys().hasOnly(['type']))
+   );
+  }
+  function metadata(d){return d.keys().hasOnly(['owner','members','bots','revision']) && d.owner is string && d.members is list && d.bots is list && d.members.size()>=1 && d.members.size()<=4 && d.bots.size()<4 && d.bots.hasOnly(d.members) && d.owner in d.members && d.revision is int && d.revision>=1;}
+  function controls(d,actor){return actor==request.auth.uid || (request.auth.uid==d.owner && actor in d.bots);}
+  match /previews/{scope}/tables/{room} {
+   // Invitations permit viewing a named table, never discovering the table collection.
+   allow get: if signedIn();
+   allow create: if signedIn() && metadata(request.resource.data)
+    && request.resource.data.owner==request.auth.uid && request.resource.data.members==[request.auth.uid]
+    && request.resource.data.bots==[] && request.resource.data.revision==1
+    && getAfter(event(scope,room,1)).data.intent.type=='create'
+    && getAfter(event(scope,room,1)).data.actor==request.auth.uid;
+   allow update: if signedIn() && metadata(request.resource.data)
+    && request.resource.data.owner==resource.data.owner
+    && request.resource.data.revision==resource.data.revision+1
+    && membership(scope,room);
+   function membership(scope,room){
+    let old=resource.data;let next=request.resource.data;let e=getAfter(event(scope,room,next.revision)).data;
+    return e.intent.type=='join'
+     ? e.actor==request.auth.uid && !(e.actor in old.members) && next.members==old.members.concat([e.actor]) && next.bots==old.bots
+     : e.intent.type=='invite-bot'
+      ? request.auth.uid==old.owner && e.actor==request.auth.uid && !(e.intent.id in old.members) && next.members==old.members.concat([e.intent.id]) && next.bots==old.bots.concat([e.intent.id])
+      : e.intent.type!='create' && (e.intent.type!='begin' || (e.actor==old.owner && old.members.size()>=2 && old.members.size()<=4)) && controls(old,e.actor) && request.auth.uid in old.members && next.members==old.members && next.bots==old.bots;
+   }
+   match /events/{sequence} {
+    allow read: if signedIn();
+    allow create: if signedIn()
+     && request.resource.data.keys().hasOnly(['version','id','sequence','actor','intent'])
+     && request.resource.data.version==1 && request.resource.data.id is string && request.resource.data.id.matches('[A-Za-z0-9_-]{1,128}')
+     && request.resource.data.actor is string && request.resource.data.sequence is int
+     && intent(request.resource.data.intent)
+     && sequence==string(request.resource.data.sequence)
+     && getAfter(table(scope,room)).data.revision==request.resource.data.sequence
+     && controls(getAfter(table(scope,room)).data,request.resource.data.actor)
+     && request.auth.uid in getAfter(table(scope,room)).data.members
+     && (!exists(table(scope,room)) || getAfter(table(scope,room)).data.revision==get(table(scope,room)).data.revision+1)
+     && (!exists(table(scope,room)) || request.resource.data.version==get(event(scope,room,get(table(scope,room)).data.revision)).data.version)
+     && getAfter(/databases/$(database)/documents/previews/$(scope)/tables/$(room)/commands/$(request.resource.data.id)).data.sequence==request.resource.data.sequence;
+   }
+   match /commands/{id} {
+    allow get: if signedIn();
+    allow create: if signedIn() && request.resource.data.keys().hasOnly(['sequence'])
+     && request.resource.data.sequence is int
+     && getAfter(table(scope,room)).data.revision==request.resource.data.sequence
+     && request.auth.uid in getAfter(table(scope,room)).data.members
+     && !exists(event(scope,room,request.resource.data.sequence))
+     && getAfter(event(scope,room,request.resource.data.sequence)).data.id==id;
+   }
+  }
+ }
+}

@@ -8,3 +8,8 @@ artifacts/
 .env
 .env.*
 !.env.example
+.data/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+.firebase/

@@ -1,6 +1,6 @@
-# Can’t Stop — the workshop
+# Can’t Stop
 
-A desktop and phone component gallery and animation lab, built with **Svelte 5, Threlte 8, and Three.js**. The square board rotated 45°, dice, pieces, tray, nameplates, and action plaques are rendered geometry. The concept paintings are references, not game backgrounds or clickable screenshot overlays.
+A shared, replayable board game for two to four players, with a desktop and phone component gallery and animation lab. Built with **Svelte 5, Threlte 8, and Three.js**. The square board rotated 45°, dice, pieces, tray, nameplates, and action plaques are rendered geometry. The concept paintings are references, not game backgrounds or clickable screenshot overlays.
 
 ## Run locally
 
@@ -9,10 +9,11 @@ bun install
 bun run dev
 ```
 
-Open **http://127.0.0.1:5199/dev/animations**.
+Open **http://127.0.0.1:5199/** to play, or **http://127.0.0.1:5199/dev/animations** for the reviewed lab.
 
 | View | URL |
 | --- | --- |
+| Playable game | `/` |
 | Animation lab | `/dev/animations` |
 | Component gallery | `/gallery` (also `/dev/components`) |
 | Phone portrait preview | `/dev/animations?device=phone` |
@@ -21,13 +22,13 @@ Open **http://127.0.0.1:5199/dev/animations**.
 | A particular motion | `/dev/animations?scene=bust` |
 | A particular component | `/gallery?component=dice` |
 
-The root opens the animation lab. All assets needed for rendering are local; workshop typography uses Google Fonts with a system-font fallback. A WebGL-capable browser is required.
+The root opens the playable game. All assets needed for rendering are local; workshop typography uses Google Fonts with a system-font fallback. A WebGL-capable browser is required.
 
 ## What to review
 
 The gallery contains the rotated square board, ruby dice, black runners, colored saved markers, action plaques, and material samples. Orbit and zoom are available in the gallery; table, overhead, and low cameras are available throughout. Low angle shows a live Tilt slider (15–80°), including in focus mode; its setting is retained when switching views. All views use the same material library and geometry.
 
-The lab has twelve examples: a ready table, pairing, dice rolling, a double advance, stopping, a complete turn, busting, a provisional summit, claiming, victory, a final-runner choice, and reconnection. Each has play/pause, replay, a scrubber, speed, loop, and reduced-motion controls. Space toggles playback; arrow keys seek in 0.1-second increments when focus is outside a form control. Beat markers jump to review points. The reconnection example is a presentation study, not a real network connection.
+The lab examples include: a ready table, pairing, dice rolling, a double advance, stopping, a complete turn, busting, a provisional summit, claiming, victory, a final-runner choice, and reconnection. Each has play/pause, replay, a scrubber, speed, loop, and reduced-motion controls. Space toggles playback; arrow keys seek in 0.1-second increments when focus is outside a form control. Beat markers jump to review points. The reconnection example is a presentation study, not a real network connection.
 
 Switch between **Desktop**, **Portrait**, and **Landscape** in the toolbar. The two phone previews preserve their 390 × 844 and 844 × 390 canvas proportions. Portrait enlarges the board by a further 17% to maximize tile size, with a compact player row and closer control spacing: the empty side vertices are cropped, while all eleven tracks and their complete number labels stay visible. Player medallions move into a compact top row so they remain readable at the larger scale. On an actual narrow viewport the workshop becomes horizontally browsable; focus mode fills the screen with the game. Rotating a phone to landscape enlarges the board to nearly fill the screen height with a small border, and puts dice/actions on the right, preserving the current state and timeline. Tabletop and TV modes are intentionally deferred.
 
@@ -55,7 +56,7 @@ This is a visual prototype, **not the production multiplayer game**. It has no a
 - `src/lib/presentation/frame.ts` is a pure time sampler. It returns the same frame at the same time, regardless of scrub history or playback speed. Reduced motion lands on the same settled state. Runner motion includes separate steps for a double.
 - `src/lib/components/TableView.svelte` is the shared canvas and accessible controls. `src/lib/scene/` contains the same rendering components used by both lab and gallery. No duplicate gallery-only board or simplified test renderer exists.
 
-The later trusted-client system should record a versioned initial seed and ordered player intents, and derive outcomes through deterministic replay, as in Pantheon and Cribbage. It should drive these same transitions and components. The prototype does not prescribe networking or storage, and its fixture snapshots should not become an event protocol.
+The playable trusted-client system in `src/game/engine.ts` records a versioned begin seed and ordered player intents, then derives outcomes through deterministic replay. Its relay, Firebase, and launcher adapters follow Cribbage. Review fixtures remain local lab snapshots and never become production events.
 
 ## Visual scope
 
@@ -76,8 +77,38 @@ bun run build
 
 Unit checks exercise classic-rule edge cases, seeded replay, catalog legality, immutable sampling, reverse seeking, double-step motion, and normal/reduced-motion equivalence. Browser tests exercise real canvas mouse and touch actions, move/save/roll handoff, the final-runner choice, every timeline, phone rotation/fit, both explicit phone previews, podium staging, uniform sizing, gallery components, and orbit controls. Captures are written to `artifacts/`; failed browser runs retain traces under `test-results/`.
 
-For a production-build preview, run `bun run preview` and open port 4199. This remains a local prototype for review.
+For the built playable game, run `bun run build && bun run start` and open port 5200. A static Vite preview on 4199 needs Firebase configured for multiplayer; the lab routes work offline.
 
 ## License
 
 This project is licensed under the GNU General Public License version 3 (GPL-3.0-only). See [LICENSE](LICENSE). Bundled third-party material scans and lighting retain their CC0 provenance in [public/materials/SOURCES.md](public/materials/SOURCES.md).
+
+## Playable game
+
+The reviewed prototype is preserved in initial commit `bb47219`. `/` now opens a
+persistent table for two to four players; the animation lab stays at
+`/dev/animations` and the component gallery at `/gallery`. Start a new table,
+share the invitation, and add optional companions before starting. A companion
+submits the same legal choices as a human and is run by the host's open tab.
+
+`bun run dev` starts Vite on 5199 and a persistent Bun/SQLite intent relay on 5200.
+`bun run build && bun run start` serves the built game and relay on 5200. Set
+`HOST=0.0.0.0` and share a reachable address to play on another device. The
+self-contained local database is `.data/cantstop.sqlite`; retain it to keep tables.
+Optional anonymous Firebase Auth / Firestore storage uses `.env.example`,
+`firebase.json`, and `firestore.rules`. `bun run test:firebase` uses an isolated
+local demo emulator; it does not touch a production project.
+
+The default view is 60°. Settings offer Overhead and Standard/Fast/Blazing motion
+(1×/2×/4×); preferences stay on the device and never alter the game log. History
+lets you inspect any action boundary, download a JSON log, and return to the live
+table. Open a downloaded log from the welcome screen for a read-only replay.
+
+Gameroom uses the same `?launch=create|join&table=CODE&name=NAME` contract as
+Cribbage. `public/gameroom-launch.json` declares support. A guest arriving before
+the host waits; names are preferences, not identities. Reopening an invitation
+retains the existing local/Firebase identity and does not duplicate a seat. The
+separate Gameroom integration change recognizes the exact Can't Stop WebURL;
+adding or enabling a production catalog entry remains a catalog-owner action.
+
+See [docs/GAME.md](docs/GAME.md) for the intent protocol and replay guarantees.
