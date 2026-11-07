@@ -48,7 +48,7 @@ test('four people share a walk-up touch table, choose colours, and take turns on
   const log=await readEvents(request,room);expect(log.slice(initial.length).map((e:{actor:string})=>e.actor)).toEqual(players.flatMap(p=>[p.id,p.id]));
   await touch(page,'RUBY · 0/3',false);await touch(page,'SEAT SOUTH RIGHT',false);await settled(page);
   const places=JSON.parse((await page.locator('.table-view').getAttribute('data-seats'))!);expect(places[players[0].id]).toBe('south-right');expect(await readEvents(request,room)).toEqual(log);
-  await page.reload();await settled(page);expect(await page.locator('.game-shell').getAttribute('data-room')).toBe(room);expect(JSON.parse((await page.locator('.table-view').getAttribute('data-seats'))!)).toEqual(places);
+  await page.reload();await expect(page.locator('.game-shell')).toHaveAttribute('data-revision',String(log.length));await settled(page);expect(await page.locator('.game-shell').getAttribute('data-room')).toBe(room);expect(JSON.parse((await page.locator('.table-view').getAttribute('data-seats'))!)).toEqual(places);
   await expect(page.locator('.game-shell')).toHaveAttribute('data-can-act','true');expect(JSON.parse((await page.locator('.game-shell').getAttribute('data-local-players'))!)).toHaveLength(3);
   await page.setViewportSize({width:3840,height:2160});await settled(page);await fit(page);await page.screenshot({path:'artifacts/tabletop-4k.png'});
   await touch(page,'TABLE MENU',false);await expect(page.getByRole('dialog',{name:'Table menu',exact:true})).toBeVisible();
