@@ -1,4 +1,5 @@
 <script lang="ts">
+ import {equivalentMove} from '../model/game';
  import {watchTowerRolls} from '../../game/towers/connection';
  import type {TowerRoll} from '../../game/towers/model';
  import type {State,Intent} from '../../game/engine';
@@ -19,6 +20,7 @@
   const person=gameState.players.find(p=>actors.includes(p.id)&&(p.tower??null)!==selected);
   const next=pending[0];
   if(!person&&next&&(next.turnId!==gameState.turnId||gameState.players[gameState.game?.active??-1]?.id!==next.actor||gameState.towerEvents.includes(`${selected}/${next.event.eventId}`))){pending=pending.slice(1);return;}
+  if(!person&&next&&gameState.game?.phase==='choose'&&equivalentMove(gameState.game))return; // Let the controller commit a forced move before the next throw.
   const actor=person?.id??next?.actor;if(!actor)return;
   const intent:Intent=person?{type:'dice-source',tower:selected}:{type:'tower-roll',tower:selected!,eventId:next.event.eventId,rollId:next.event.rollId,dice:next.event.dice};
   const key=`${gameState.revision}:${actor}:${JSON.stringify(intent)}`;if(attempted===key)return;attempted=key;busy=true;

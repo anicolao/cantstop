@@ -103,7 +103,13 @@
  async function act(intent:Intent,actor=active?.id??viewer):Promise<boolean>{
   if(!repo||sending)return false;sending=true;error='';try{await repo.append(actor,intent);return true;}catch(e){error=(e as Error).message;return false;}finally{sending=false;}
  }
- $effect(()=>{if(canAct&&tableState.game?.phase==='choose'&&(tableState.players[tableState.game.active].tower??null)===tower){const forced=equivalentMove(tableState.game);if(forced)void act(forced);}});
+ // An acknowledgement can arrive before the updated watch snapshot. Submit once per revision.
+ let automaticChoice='';
+ $effect(()=>{
+  if(!canAct||tableState.game?.phase!=='choose'||(tableState.players[tableState.game.active].tower??null)!==tower)return;
+  const forced=equivalentMove(tableState.game),key=`${room}:${tableState.revision}`;
+  if(forced&&automaticChoice!==key){automaticChoice=key;void act(forced);}
+ });
  async function sit(colour:number){
   const seat=pickingSeat;if(!repo||!seat||!canAct||tableState.players.some(p=>p.colour===colour))return;
   sending=true;error='';try{const actor=tableState.players.length?(locals.find(id=>!tableState.players.some(p=>p.id===id))??await newLocalIdentity(room)):viewer;locals=await localIdentities(room);await repo.append(actor,{type:'sit',seat,colour});pickingSeat=null;}catch(e){error=(e as Error).message;}finally{locals=await localIdentities(room);sending=false;}
