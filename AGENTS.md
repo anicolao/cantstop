@@ -29,9 +29,11 @@ Run type checks, unit/integration tests, the build, and browser checks appropria
 to a change. Keep native canvas pointer handlers and accessible keyboard controls.
 Do not weaken rendering or screenshot tolerances to pass tests.
 
-Tabletop is a shared overhead touchscreen with six physical places (two per long
-edge, one per short edge). Physical seating and orientation are device preferences,
-never game events. Local humans use separate persisted anonymous Firebase Auth
-apps and ordinary joins/actions; never impersonate another UID or treat humans
-as bots. Preserve remote turn ownership. Use the shared scene and native mesh
-controls, orienting the board and active dock toward the current physical seat.
+Tabletop is the `/tt/` walk-up route: immediately show the board and six empty
+places (two per long edge, one per short edge). People tap a place, choose an
+available colour, and start. Never require names, manual room creation, or codes.
+New game allocates a new hidden room. Protocol 3 records only sit {seat,colour},
+begin, and ordinary player choices; colour labels and outcomes are derived.
+Preserve protocols 1 and 2. Each colour has a separately persisted anonymous Auth
+session; never impersonate UIDs or mark humans as bots. Render the shared scene
+with native mesh touch controls and orient the board/dock toward the active seat.

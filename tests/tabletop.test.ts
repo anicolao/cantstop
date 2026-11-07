@@ -12,7 +12,7 @@ test('places stay unique across joins, reloads, stale preferences and malformed 
  expect(assigned.a).toBe('east');expect(assigned.c).toBe('west');expect(new Set(Object.values(assigned)).size).toBe(4);
  expect(assignSeats(players,JSON.parse(JSON.stringify(assigned)))).toEqual(assigned);
  for(const value of [null,[],true,'bad'])expect(new Set(Object.values(assignSeats(players,value))).size).toBe(4);
- expect(normalizePreferences({view:'tabletop',animationSpeed:'fast'})).toEqual({view:'tabletop',animationSpeed:'fast'});
+ expect(normalizePreferences({view:'overhead',animationSpeed:'fast'})).toEqual({view:'overhead',animationSpeed:'fast'});
 });
 test('dice travel around the board and spins use the shortest orientation',()=>{
  for(const from of SEATS)for(const to of SEATS){
@@ -21,4 +21,24 @@ test('dice travel around the board and spins use the shortest orientation',()=>{
   const end=seatTravel(from.pose,to.pose,1);expect(end.x).toBeCloseTo(to.pose.x);expect(end.z).toBeCloseTo(to.pose.z);expect(shortestAngle(end.angle,to.pose.angle)).toBeCloseTo(0);
  }
  expect(shortestAngle(Math.PI-.1,-Math.PI+.1)).toBeCloseTo(.2);
+});
+
+
+test('walk-up seats record colour choices without names and any seated colour can start',async()=>{
+ const {apply,initialState,replay,chooseBot,parseIntent}=await import('../src/game/engine');
+ const {COLOUR_NAMES}=await import('../src/game/seating');
+ for(const count of [2,3,4]){
+  let state=initialState(3);const log:import('../src/game/engine').Event[]=[];
+  const send=(actor:string,intent:import('../src/game/engine').Intent)=>{state=apply(state,actor,intent);log.push({version:3,id:`walk-${log.length}`,sequence:log.length+1,actor,intent});};
+  const colours=[2,0,3,1];for(let i=0;i<count;i++)send(`p${i}`,{type:'sit',seat:SEATS[i].id,colour:colours[i]});
+  expect(state.players.map(p=>p.name)).toEqual(colours.slice(0,count).map(c=>COLOUR_NAMES[c]));
+  expect(()=>apply(state,'stranger',{type:'sit',seat:'west',colour:2})).toThrow();
+  expect(()=>apply(state,'stranger',{type:'join',name:'No name form'})).toThrow();
+  send('p1',{type:'begin',seed:`walkup-${count}`});expect(state.game!.phase).toBe('choose');
+  for(let turn=0;turn<5000&&state.phase!=='finished';turn++){const action=chooseBot({...state,players:state.players.map(p=>({...p,bot:true}))})!;send(state.players[state.game!.active].id,action);}
+  expect(state.phase).toBe('finished');expect(replay(log)).toEqual(state);
+  expect(log.filter(e=>e.intent.type==='sit').every(e=>!('name' in e.intent))).toBe(true);
+ }
+ for(const version of [1,2] as const)expect(()=>replay([{version,id:'wrong-protocol',sequence:1,actor:'p0',intent:{type:'sit',seat:'east',colour:0}}])).toThrow();
+ for(const value of [{type:'sit',colour:4,seat:'east'},{type:'sit',colour:0,seat:'ceiling'},{type:'sit',colour:0,seat:'east',name:'hidden'}])expect(()=>parseIntent(value)).toThrow();
 });

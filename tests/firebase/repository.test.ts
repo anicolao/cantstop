@@ -36,3 +36,13 @@ test('concurrent joins serialize and separate preview namespaces do not share a 
  const race=await Promise.allSettled([appendFirestore(a,'one','RACE1','join-a',{id:'a',actor:'join-a',expectedRevision:1,intent:{type:'join',name:'A'}}),appendFirestore(b,'one','RACE1','join-b',{id:'b',actor:'join-b',expectedRevision:1,intent:{type:'join',name:'B'}})]);expect(race.filter(r=>r.status==='fulfilled')).toHaveLength(1);
  await appendFirestore(owner,'two','RACE1','captain',{id:'create',actor:'captain',expectedRevision:0,intent:{type:'create',name:'Other'}});expect((await getDoc(tableRef(owner,'one','RACE1'))).data()?.revision).toBe(2);expect((await getDoc(tableRef(owner,'two','RACE1'))).data()?.revision).toBe(1);
 });
+
+test('walk-up colours create a hidden table and a second seated identity can start it',async()=>{
+ const first=db('walk-a'),second=db('walk-b');const pending={id:'sit-a',actor:'walk-a',expectedRevision:0,intent:{type:'sit',seat:'west',colour:2} as Intent};
+ await appendFirestore(first,'walkup','WALK1','walk-a',pending);
+ await appendFirestore(second,'walkup','WALK1','walk-b',{id:'sit-b',actor:'walk-b',expectedRevision:1,intent:{type:'sit',seat:'east',colour:0}});
+ await appendFirestore(second,'walkup','WALK1','walk-b',{id:'begin',actor:'walk-b',expectedRevision:2,intent:{type:'begin',seed:'walk-up'}});
+ const log=(await getDocs(collection(tableRef(first,'walkup','WALK1'),'events'))).docs.map(d=>d.data() as Event).sort((a,b)=>a.sequence-b.sequence);
+ expect(log.map(e=>e.version)).toEqual([3,3,3]);expect(log.map(e=>e.intent.type)).toEqual(['sit','sit','begin']);expect(replay(log).game!.phase).toBe('choose');
+ await assertFails(setDoc(doc(tableRef(second,'walkup','WALK1'),'events','4'),{version:2,id:'downgrade',sequence:4,actor:'walk-b',intent:{type:'roll'}}));
+});

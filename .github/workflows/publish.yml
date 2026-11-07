@@ -57,7 +57,7 @@ jobs:
             test -n "${!variable}" || { echo "Missing Firebase configuration: $variable"; exit 1; }
           done
           bun run build
-          for route in dev/animations dev/components gallery; do
+          for route in dev/animations dev/components gallery tt; do
             mkdir -p "dist/$route"
             cp dist/index.html "dist/$route/index.html"
           done

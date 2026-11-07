@@ -1,6 +1,7 @@
 import {evolve,type State,type Event} from './engine';
 import type {Transition} from '../lib/presentation/catalog';
 import type {Frame} from '../lib/presentation/frame';
+import {FINISH} from '../lib/presentation/finish';
 import {sample} from '../lib/presentation/frame';
 export function transitions(before:State,event:Event):Transition[]{
  return evolve(before,event.actor,event.intent).changes.map(change=>{
@@ -14,6 +15,7 @@ export function frameFor(state:State,step:Transition|null,time:number,reduced=fa
  if(!state.game)return null;
  const current=step??{before:state.game,after:state.game,kind:state.game.phase==='ready'?'ready':'settled',duration:1};
  const frame=sample(current,step?time:1,reduced);
+ for(const piece of frame.pieces)piece.color=FINISH.players[state.players[piece.owner]?.colour??piece.owner];
  const player=state.players[frame.state.active]?.name??'Player';
  if(!step||frame.progress>=1){
   frame.label=state.phase==='finished'?`${state.players.find(p=>p.id===state.winner)?.name} wins`:frame.state.phase==='ready'?`${player}'s turn`:frame.state.phase==='choose'?`${player}, choose your climb`:`${player}, roll or save?`;

@@ -1,4 +1,5 @@
-export type SeatId='south-left'|'south-right'|'east'|'north-right'|'north-left'|'west';
+import type {SeatId} from '../../game/seating';
+export type {SeatId} from '../../game/seating';
 export type SeatPose={x:number;z:number;angle:number};
 export const TABLETOP_SPAN=25.6;
 export const SEATS:readonly {id:SeatId;label:string;pose:SeatPose}[]=[
