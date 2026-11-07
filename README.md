@@ -205,3 +205,11 @@ Firebase configuration. `firebase/dicetower.database.rules.json` copies its
 source rules solely for isolated emulator tests. Local development uses
 `demo-dicetower-local` on port 9012, browser tests use `demo-dicetower-e2e` on 9013;
 neither accesses production towers. No DiceTower deployment is required.
+
+DiceTower workaround: only the first occurrence of consecutive identical physical
+dice values may auto-select an equivalent move. Later readings (even with new
+roll IDs or reordered dice) wait for a normal pairing click; another throw may
+replace that unplayed reading. A different result, a new turn, or a dice-source
+change enables automatic selection again. The guard is derived from accepted
+history, so reloads preserve it. Recognition corrections replace their current
+throw, and digital auto-selection is unchanged.

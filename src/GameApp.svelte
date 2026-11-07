@@ -1,4 +1,5 @@
 <script lang="ts">
+ import {automaticMove} from './game/automatic-move';
  import DiceTowerPicker from './lib/components/DiceTowerPicker.svelte';
  import DiceTowerBridge from './lib/components/DiceTowerBridge.svelte';
  import {savedTower} from './game/towers/model';
@@ -8,7 +9,7 @@
  import {apply,initialState,replay,chooseBot,choiceBoard,type State,type Intent,type Event} from './game/engine';
  import {repository,playerIdentity} from './game/repository';
  import {readLaunch,launchIntent,type Launch} from './game/launcher';
- import {pairings,equivalentMove} from './lib/model/game';
+ import {pairings} from './lib/model/game';
  import {randomId} from './game/random-id';
  import {frameFor,transitions} from './game/presentation';
  import type {Transition} from './lib/presentation/catalog';
@@ -108,7 +109,7 @@
  let automaticChoice='';
  $effect(()=>{
   if(!canAct||tableState.game?.phase!=='choose'||(tableState.players[tableState.game.active].tower??null)!==tower)return;
-  const forced=equivalentMove(tableState.game),key=`${room}:${tableState.revision}`;
+  const forced=automaticMove(tableState,events),key=`${room}:${tableState.revision}`;
   if(forced&&automaticChoice!==key){automaticChoice=key;void send(forced);}
  });
  function selectPair(pairing:number){
@@ -156,7 +157,7 @@
 </script>
 <svelte:head><title>Can’t Stop{room?` · ${room}`:''}</title></svelte:head>
 <div class="game-shell" data-game-phase={tableState.phase} data-revision={tableState.revision} data-tower-status={towerStatus} data-moving={moving} data-can-act={canAct} data-actor={viewer}>
- <DiceTowerBridge gameState={tableState} selected={tower} actors={seated?[viewer]:[]} paused={!loaded||sending||moving||settingsOpen||historyOpen||imported} onIntent={send} onStatus={towerStatusChanged}/>
+ <DiceTowerBridge gameState={tableState} gameEvents={events} selected={tower} actors={seated?[viewer]:[]} paused={!loaded||sending||moving||settingsOpen||historyOpen||imported} onIntent={send} onStatus={towerStatusChanged}/>
  <span class="connection-status" role="status" data-status={loaded?'synced':'connecting'}>{loaded?'Table connected':'Connecting'}</span>
  <header class="game-topbar">
   <a class="game-brand" href={import.meta.env.BASE_URL}>CAN’T STOP</a>
