@@ -21,6 +21,7 @@ jobs:
     runs-on: ubuntu-24.04
     permissions:
       contents: write
+      pages: write
       pull-requests: write
     steps:
       - uses: actions/checkout@v4
@@ -67,6 +68,11 @@ jobs:
           publish_dir: dist
           destination_dir: ${{ steps.preview.outputs.destination }}
           keep_files: true
+      # GITHUB_TOKEN pushes do not trigger Pages builds. Request one explicitly.
+      - name: Deploy the updated Pages branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh api --method POST "repos/$GITHUB_REPOSITORY/pages/builds"
       - name: Link preview from PR
         if: steps.preview.outputs.destination != ''
         env:
