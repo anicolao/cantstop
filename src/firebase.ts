@@ -5,6 +5,7 @@ export const firebaseConfigured=!!import.meta.env.VITE_FIREBASE_PROJECT_ID;
 export const previewScope=import.meta.env.VITE_PREVIEW_ID??'main';
 async function connect(){
  const env=import.meta.env;
+ if(!firebaseConfigured)throw new Error('This build is missing its Firebase configuration.');
  const app=initializeApp({apiKey:env.VITE_FIREBASE_API_KEY,authDomain:env.VITE_FIREBASE_AUTH_DOMAIN,projectId:env.VITE_FIREBASE_PROJECT_ID,appId:env.VITE_FIREBASE_APP_ID});
  const auth=getAuth(app);
  // XHR avoids Safari buffering the last Fetch Streams response frame.

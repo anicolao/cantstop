@@ -4,6 +4,11 @@ Use Bun. Work on `codex/` branches and use pull requests. Preserve the reviewed
 animation lab at `/dev/animations` and component gallery at `/gallery`; `/` is the
 playable table. The game and lab share the same TableView and motion sampler.
 
+Use only Firestore with anonymous Firebase Auth for live games. Do not add a
+relay, SQLite, SSE, or a second persistence backend. Use isolated Firebase
+emulators for local development and browser tests. Every same-repository PR
+must publish a GitHub Pages preview and link it from the PR.
+
 The ordered, versioned player-intent log is canonical. Record choices, never dice
 outcomes, positions, turns, claims, scores, winners, or animation deadlines.
 Replay derives outcomes deterministically from the begin intent's seed. Clients

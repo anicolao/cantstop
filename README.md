@@ -56,7 +56,7 @@ The animation lab uses local review fixtures. The playable game adds identities,
 - `src/lib/presentation/frame.ts` is a pure time sampler. It returns the same frame at the same time, regardless of scrub history or playback speed. Reduced motion lands on the same settled state. Runner motion includes separate steps for a double.
 - `src/lib/components/TableView.svelte` is the shared canvas and accessible controls. `src/lib/scene/` contains the same rendering components used by both lab and gallery. No duplicate gallery-only board or simplified test renderer exists.
 
-The playable trusted-client system in `src/game/engine.ts` records a versioned begin seed and ordered player intents, then derives outcomes through deterministic replay. Its relay, Firebase, and launcher adapters follow Cribbage. Review fixtures remain local lab snapshots and never become production events.
+The playable trusted-client system in `src/game/engine.ts` records a versioned begin seed and ordered player intents, then derives outcomes through deterministic replay. Its anonymous Firebase Auth, Firestore, and launcher adapters follow Cribbage. Review fixtures remain local lab snapshots and never become production events.
 
 ## Visual scope
 
@@ -78,7 +78,7 @@ bun run build
 
 Unit checks exercise classic-rule edge cases, seeded replay, catalog legality, immutable sampling, reverse seeking, double-step motion, and normal/reduced-motion equivalence. Browser tests exercise real canvas mouse and touch actions, move/save/roll handoff, the final-runner choice, every timeline, phone rotation/fit, both explicit phone previews, podium staging, uniform sizing, gallery components, and orbit controls. Captures are written to `artifacts/`; failed browser runs retain traces under `test-results/`.
 
-For the built playable game, run `bun run build && bun run start` and open port 5200. A static Vite preview on 4199 needs Firebase configured for multiplayer; the lab routes work offline.
+For the built playable game, configure Firebase as in `.env.example`, then run `bun run build && bun run preview` and open port 4199. The lab routes work offline.
 
 ## License
 
@@ -92,14 +92,22 @@ persistent table for two to four players; the animation lab stays at
 share the invitation, and add optional companions before starting. A companion
 submits the same legal choices as a human and is run by the host's open tab.
 
-`bun run dev` starts Vite on 5199 and a persistent Bun/SQLite intent relay on 5200.
-`bun run build && bun run start` serves the built game and relay on 5200. Set
-`HOST=0.0.0.0` and share a reachable address to play on another device. The
-self-contained local database is `.data/cantstop.sqlite`; retain it to keep tables.
-Optional anonymous Firebase Auth / Firestore storage uses `.env.example`,
-`firebase.json`, and `firestore.rules`. `bun run test:firebase` uses an isolated
-local demo emulator; it does not touch a production project.
+`bun run dev` starts Vite on 5199. Without a real Firebase configuration it also
+starts isolated anonymous Auth and Firestore emulators (Java 21 required), using
+only the guarded `demo-cantstop-local` project. `bun run dev:emulators` forces
+this local mode. With the configuration in `.env.example`, the game connects
+directly to anonymous Firebase Auth and Firestore. There is no application server
+or alternate persistence backend.
 
+`bun run test:firebase` uses an isolated rules-test emulator, and browser tests
+start their own Auth/Firestore emulators and Vite on 5399. Neither touches a
+production project or the running development stack.
+
+Every same-repository PR automatically publishes a playable GitHub Pages preview
+at `https://anicolao.github.io/cantstop/prNUMBER/` and adds its link to the PR.
+Each preview has its own Firestore namespace. Builds on main publish the root
+site. Client configuration comes from repository `VITE_FIREBASE_*` variables;
+the dedicated project is `cantstop-preview-anicolao`.
 The default view is 60°. Settings offer Overhead and Standard/Fast/Blazing motion
 (1×/2×/4×); preferences stay on the device and never alter the game log. History
 lets you inspect any action boundary, download a JSON log, and return to the live
