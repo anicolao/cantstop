@@ -28,3 +28,11 @@ export async function clickFirstPairing(page:Page){
  }).toBeTruthy();
  await clickMesh(page,name!);
 }
+
+/** Control only the next begin intent's entropy; command IDs and Auth stay random. */
+export async function nextGameSeed(page:Page,seed:string){
+ await page.evaluate(seed=>{
+  const original=crypto.randomUUID.bind(crypto);
+  crypto.randomUUID=()=>{crypto.randomUUID=original;return seed as ReturnType<Crypto['randomUUID']>;};
+ },seed);
+}

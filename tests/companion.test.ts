@@ -66,3 +66,32 @@ describe('companion levels',()=>{
   expect(chooseBot(state)).toBeNull();expect(()=>apply(state,'bot-hard',{type:'advance',pairing:0})).toThrow('Wait for your turn');
  });
 });
+
+for(const mode of ['web','tabletop'] as const)test(`${mode} browser fixture exercises the expected real bot choices`,async()=>{
+ const {COMPANION_GAMES}=await import('./helpers/companion-games');const game=COMPANION_GAMES[mode];
+ let state=initialState();
+ if(mode==='web'){
+  state=apply(state,'host',{type:'create',name:'Host'});
+  for(const [i,level] of ['easy','yolo','hard'].entries())state=apply(state,'host',{type:'invite-bot',id:`bot-${i}`,name:level,level:level as 'easy'|'yolo'|'hard'});
+ }else{
+  state=apply(state,'host',{type:'sit',seat:'south-left',colour:2});state=apply(state,'host',{type:'invite-bot',id:'bot-hard',name:'Gold',level:'hard',colour:1});state=apply(state,'human2',{type:'sit',seat:'east',colour:0});
+ }
+ state=apply(state,'host',{type:'begin',seed:game.seed});state=apply(state,'host',{type:'advance',pairing:0});state=apply(state,'host',{type:'stop'});
+ for(const action of game.actions){
+  expect(state.game!.active).toBe(action.seat);const intent=chooseBot(state);expect(intent).toEqual(action.intent);
+  state=apply(state,state.players[action.seat].id,intent!);
+ }
+ expect(state.game!.active).toBe(game.nextSeat);expect(chooseBot(state)).toBeNull();
+});
+
+test('the long Hard turn from the CI trace finishes legally and passes to the local human',()=>{
+ let state=apply(initialState(3),'host',{type:'sit',seat:'south-left',colour:2});
+ state=apply(state,'host',{type:'invite-bot',id:'bot-hard',name:'Gold',level:'hard',colour:1});state=apply(state,'human2',{type:'sit',seat:'east',colour:0});
+ state=apply(state,'host',{type:'begin',seed:'1eb94ab4-484a-45c4-8b81-241f7f68359e'});
+ state=apply(state,'host',{type:'advance',pairing:0});state=apply(state,'host',{type:'stop'});
+ let actions=0,maxRolls=0;
+ while(state.game!.active===1&&actions<70){
+  maxRolls=Math.max(maxRolls,state.turnRolls);const intent=chooseBot(state);expect(intent).not.toBeNull();state=apply(state,'bot-hard',intent!);actions++;
+ }
+ expect(actions).toBe(24);expect(maxRolls).toBe(12);expect(state.game!.active).toBe(2);expect(chooseBot(state)).toBeNull();
+});
