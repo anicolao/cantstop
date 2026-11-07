@@ -1,11 +1,12 @@
 <script lang="ts">
  import {onMount} from 'svelte';
  import TableView from './lib/components/TableView.svelte';
- import {apply,initialState,replay,chooseBot,type State,type Intent,type Event} from './game/engine';
+ import {apply,initialState,replay,chooseBot,choiceBoard,type State,type Intent,type Event} from './game/engine';
  import {repository,playerIdentity} from './game/repository';
  import {readLaunch,launchIntent,type Launch} from './game/launcher';
+ import {pairings} from './lib/model/game';
  import {randomId} from './game/random-id';
- import {frameFor,transition} from './game/presentation';
+ import {frameFor,transitions} from './game/presentation';
  import type {Transition} from './lib/presentation/catalog';
  import {DEFAULTS,RATES,SETTINGS_KEY,normalizePreferences,type Preferences} from './game/settings';
  const initialRoom=new URLSearchParams(location.search).get('table')??'';
@@ -16,13 +17,17 @@
  let name=$state(''),joinCode=$state(''),lastTable=$state('');
  let preferences=$state<Preferences>({...DEFAULTS}),settingsOpen=$state(false),historyOpen=$state(false),helpOpen=$state(false);
  let historyRevision=$state<number|null>(null),imported=$state(false),copied=$state(false);
- let selected=$state(2),runnerColumn=$state<number>(),step=$state.raw<Transition|null>(null),time=$state(0),reduced=$state(false),phone=$state(false);
+ let selected=$state(-1),runnerColumn=$state<number>(),step=$state.raw<Transition|null>(null),time=$state(0),reduced=$state(false),phone=$state(false);
+ let pendingSteps=$state.raw<Transition[]>([]);
  let importInput:HTMLInputElement;
  const viewing=$derived(historyRevision===null?tableState:replay(events.slice(0,historyRevision)));
- const frame=$derived(frameFor(viewing,historyRevision===null?step:null,time,reduced));
- const moving=$derived(!!step&&!reduced&&time<step.duration);
+ const frame=$derived(frameFor(viewing,historyRevision===null&&!reduced?step:null,time,reduced));
+ const moving=$derived(!!step&&!reduced&&(time<step.duration||pendingSteps.length>0));
  const ownTurn=$derived(!imported&&tableState.phase==='playing'&&tableState.players[tableState.game?.active??-1]?.id===viewer);
  const canAct=$derived(ownTurn&&!moving&&!sending&&!settingsOpen&&!historyOpen&&loaded);
+ const directSelection=$derived(tableState.protocol===2);
+ const options=$derived(choiceBoard(tableState)?pairings(choiceBoard(tableState)!):[]);
+ const decisionReady=$derived(!directSelection||!!tableState.choice&&tableState.choice.pairing===selected&&tableState.choice.column===runnerColumn);
  const seated=$derived(tableState.players.some(p=>p.id===viewer));
  const host=$derived(tableState.host===viewer&&!imported);
  const invitation=$derived.by(()=>{const u=new URL(location.href);u.search='';u.searchParams.set('table',room);return u.href;});
@@ -35,8 +40,8 @@
   const resize=()=>{phone=innerWidth<700||(innerHeight<520&&innerWidth<1100);};resize();window.addEventListener('resize',resize);
   const changed=()=>reduced=motion.matches;motion.addEventListener('change',changed);
   let last=performance.now(),id=0;
-  const tick=(now:number)=>{if(step&&time<step.duration&&!document.hidden)time=Math.min(step.duration,time+Math.max(0,(now-last)/1000)*RATES[preferences.animationSpeed]);last=now;id=requestAnimationFrame(tick);};id=requestAnimationFrame(tick);
-  const visibility=()=>{if(document.hidden&&step)time=step.duration;last=performance.now();};document.addEventListener('visibilitychange',visibility);
+  const tick=(now:number)=>{if(step&&!document.hidden&&!reduced){time=Math.min(step.duration,time+Math.max(0,(now-last)/1000)*RATES[preferences.animationSpeed]);if(time>=step.duration&&pendingSteps.length){step=pendingSteps[0];pendingSteps=pendingSteps.slice(1);time=0;}}last=now;id=requestAnimationFrame(tick);};id=requestAnimationFrame(tick);
+  const visibility=()=>{if(document.hidden){step=null;pendingSteps=[];time=0;}last=performance.now();};document.addEventListener('visibilitychange',visibility);
   const escape=(e:KeyboardEvent)=>{if(e.key==='Escape'){settingsOpen=historyOpen=helpOpen=false;historyRevision=null;}};window.addEventListener('keydown',escape);
   return()=>{cancelAnimationFrame(id);document.removeEventListener('visibilitychange',visibility);window.removeEventListener('resize',resize);window.removeEventListener('keydown',escape);motion.removeEventListener('change',changed);};
  });
@@ -44,7 +49,7 @@
  $effect(()=>{
   const table=room;if(!table||imported)return;
   let closed=false,connection:ReturnType<typeof repository>|undefined;
-  loaded=false;error='';events=[];tableState=initialState();step=null;
+  loaded=false;error='';events=[];tableState=initialState();step=null;pendingSteps=[];
   void playerIdentity().then(uid=>{
    if(closed)return;viewer=uid;
    connection=repository(table,next=>{
@@ -52,11 +57,12 @@
     const before=tableState,wasLoaded=loaded,after=replay(next);
     if(wasLoaded&&next.length<events.length)return;
     if(wasLoaded&&next.length===events.length&&events.some((e,i)=>e.id!==next[i]?.id)){error='This table has a different history. Reload to reconnect.';return;}
-    if(wasLoaded&&next.length===events.length+1){
-     const intent=next.at(-1)!.intent;
-     if(intent.type==='advance'){selected=intent.pairing;runnerColumn=intent.column;}
+    if(!wasLoaded||next.length>events.length){
+     selected=after.choice?.pairing??(after.protocol===1?2:-1);runnerColumn=after.choice?.column;
     }
-    if(wasLoaded&&next.length===events.length+1&&!document.hidden){step=transition(before,after,next.at(-1)!);time=0;}else if(!wasLoaded||next.length>events.length+1||document.hidden){step=null;time=0;}
+    if(wasLoaded&&next.length===events.length+1&&!document.hidden&&!reduced){
+     const motion=transitions(before,next.at(-1)!);step=motion[0]??null;pendingSteps=motion.slice(1);time=0;
+    }else if(!wasLoaded||next.length>events.length+1||document.hidden){step=null;pendingSteps=[];time=0;}
     events=next;tableState=after;loaded=true;error='';
    },message=>{if(!closed)error=message;});repo=connection;
    try{localStorage.setItem('cantstop:lastTable',table);}catch{}
@@ -84,10 +90,24 @@
  async function send(intent:Intent,actor=viewer){
   if(!repo||sending||imported)return;
   if(['roll','advance','stop'].includes(intent.type)&&actor===viewer&&!canAct){error=moving?'Let the pieces settle.':'Wait for your turn.';return;}
+  if(directSelection&&['roll','stop'].includes(intent.type)&&actor===viewer&&!decisionReady)return;
   sending=true;error='';
-  try{await repo.append(actor,intent);if(intent.type==='roll'){selected=2;runnerColumn=undefined;}}
+  try{await repo.append(actor,intent);}
   catch(e){error=(e as Error).message;}
   finally{sending=false;}
+ }
+ function selectPair(pairing:number){
+  if(!canAct)return;
+  if(!directSelection){selected=pairing;runnerColumn=undefined;return;}
+  const option=options.find(p=>p.index===pairing);if(!option?.variants.length)return;
+  selected=pairing;
+  if(tableState.choice?.pairing===pairing){runnerColumn=tableState.choice.column;return;}
+  runnerColumn=undefined;
+  if(option.variants.length===1)void send({type:'advance',pairing});
+ }
+ function selectDestination(column:number){
+  if(!canAct)return;runnerColumn=column;
+  if(directSelection&&!(tableState.choice?.pairing===selected&&tableState.choice.column===column))void send({type:'advance',pairing:selected,column});
  }
  function openTable(mode:'create'|'join'){
   const player=name.trim();if(!player||player.length>24){error='Choose a name of 1–24 characters.';return;}
@@ -103,7 +123,7 @@
  function exportLog(){const url=URL.createObjectURL(new Blob([JSON.stringify(events,null,2)],{type:'application/json'})),a=document.createElement('a');a.href=url;a.download=`cantstop-${room||'replay'}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
  async function importLog(e:globalThis.Event){
   const file=(e.target as HTMLInputElement).files?.[0];if(!file)return;
-  try{if(file.size>2_000_000)throw new Error('Choose a game log smaller than 2 MB.');const next=JSON.parse(await file.text()) as Event[],restored=replay(next);if(!restored.game)throw new Error('This table has not started a game yet.');imported=true;repo?.close();repo=undefined;events=next;tableState=restored;step=null;loaded=true;historyRevision=next.length;historyOpen=true;room='';error='';}
+  try{if(file.size>2_000_000)throw new Error('Choose a game log smaller than 2 MB.');const next=JSON.parse(await file.text()) as Event[],restored=replay(next);if(!restored.game)throw new Error('This table has not started a game yet.');imported=true;repo?.close();repo=undefined;events=next;tableState=restored;step=null;pendingSteps=[];selected=restored.choice?.pairing??(restored.protocol===1?2:-1);runnerColumn=restored.choice?.column;loaded=true;historyRevision=next.length;historyOpen=true;room='';error='';}
   catch(e){error=(e as Error).message;}
  }
  function focusDialog(node:HTMLDivElement){
@@ -150,14 +170,14 @@
   </section></main>
  {:else}
   <main class="play-surface">
-   {#if frame}<TableView {frame} {phone} {selected} {runnerColumn} players={tableState.players} preset={preferences.view==='overhead'?'overhead':'low'} lowAngle={60} {canAct} onPair={n=>{selected=n;runnerColumn=undefined;}} onDestination={n=>runnerColumn=n} onMove={()=>send({type:'advance',pairing:selected,...(runnerColumn!==undefined?{column:runnerColumn}:{})})} onRoll={()=>send({type:'roll'})} onStop={()=>send({type:'stop'})}/>{:else}<div class="game-wait">The game had not begun at this point.</div>{/if}
+   {#if frame}<TableView {frame} {phone} {selected} {runnerColumn} players={tableState.players} preset={preferences.view==='overhead'?'overhead':'low'} lowAngle={60} {canAct} {directSelection} {decisionReady} choiceState={choiceBoard(viewing)??undefined} onPair={selectPair} onDestination={selectDestination} onMove={()=>send({type:'advance',pairing:selected,...(runnerColumn!==undefined?{column:runnerColumn}:{})})} onRoll={()=>send({type:'roll'})} onStop={()=>send({type:'stop'})}/>{:else}<div class="game-wait">The game had not begun at this point.</div>{/if}
    {#if imported}<div class="table-status">Game log · read only</div>{:else if !seated}<div class="table-status">Watching {activeName}'s table</div>{:else if !ownTurn&&tableState.phase!=='finished'}<div class="table-status">{activeName}'s turn</div>{/if}
    {#if tableState.phase==='finished'&&!historyOpen}<div class="end-actions"><button onclick={showHistory}>Review the game</button>{#if host}<button onclick={()=>send({type:'begin',seed:randomId()})}>Play again</button>{/if}</div>{/if}
   </main>
  {/if}
  {#if error}<div class="game-error" role="alert"><span>{error}</span>{#if repo}<button onclick={()=>repo?.retry().catch(e=>error=e.message)}>Retry</button>{/if}<button aria-label="Dismiss message" onclick={()=>error=''}>×</button></div>{/if}
  {#if settingsOpen}<div class="game-shade" role="presentation"><div class="game-dialog" use:focusDialog role="dialog" aria-modal="true" aria-label="Settings" tabindex="-1"><button class="dialog-close" aria-label="Close settings" onclick={()=>settingsOpen=false}>×</button><h2>Your table</h2><p>These settings stay on this device.</p><label>View<select aria-label="View" bind:value={preferences.view}><option value="standard">Standard · 60°</option><option value="overhead">Overhead</option></select></label><label>Animation speed<select aria-label="Animation speed" bind:value={preferences.animationSpeed}><option value="standard">Standard</option><option value="fast">Fast</option><option value="blazing">Blazing</option></select></label><button class="primary" onclick={()=>settingsOpen=false}>Back to the table</button></div></div>{/if}
- {#if helpOpen}<div class="game-shade" role="presentation"><div class="game-dialog" use:focusDialog role="dialog" aria-modal="true" aria-label="How to play" tabindex="-1"><button class="dialog-close" aria-label="Close rules" onclick={()=>helpOpen=false}>×</button><h2>One more roll?</h2><p>On your turn, roll four dice and split them into two pairs. Each sum advances a runner on that numbered track. Doubles advance twice.</p><p>You have three black runners for the turn. Once all three are on the board, only their columns can advance. Use every usable sum in a pairing; if only one spare runner could start either column, choose where it goes.</p><p>Roll again to climb higher, or stop to save your progress. If no pairing can move, you bust: this turn’s progress is lost, and the next player rolls.</p><p>Reach a summit and stop to claim it. That column closes to everyone. The first player to claim three columns wins.</p><button class="primary" onclick={()=>helpOpen=false}>Let’s play</button></div></div>{/if}
+ {#if helpOpen}<div class="game-shade" role="presentation"><div class="game-dialog" use:focusDialog role="dialog" aria-modal="true" aria-label="How to play" tabindex="-1"><button class="dialog-close" aria-label="Close rules" onclick={()=>helpOpen=false}>×</button><h2>One more roll?</h2><p>Your turn starts with an automatic roll. Choose how to split the four dice into two pairs. Selecting a pairing moves the runners immediately. You can change that pairing until you roll again or save. Each sum advances its numbered track; doubles advance twice.</p><p>You have three black runners for the turn. Once all three are on the board, only their columns can advance. Use every usable sum in a pairing; if only one spare runner could start either column, choose where it goes.</p><p>Roll again to climb higher, or stop to save your progress. If no pairing can move, you bust: this turn’s progress is lost, and the next player rolls.</p><p>Reach a summit and stop to claim it. That column closes to everyone. The first player to claim three columns wins.</p><button class="primary" onclick={()=>helpOpen=false}>Let’s play</button></div></div>{/if}
  {#if historyOpen}<div class="game-history" role="dialog" tabindex="-1" aria-label="Game history"><button class="dialog-close" aria-label="Close history" onclick={closeHistory}>×</button><h2>At the table</h2><p>{events.length} player actions · {imported?'Replay':'Live game'}</p><label>Replay action <output>{historyRevision??events.length} / {events.length}</output><input type="range" min="0" max={events.length} step="1" bind:value={historyRevision} aria-label="Replay action"/></label><ol>{#each events as event}<li><button class:current={historyRevision===event.sequence} onclick={()=>historyRevision=event.sequence}><span>{event.sequence}</span> {tableState.players.find(p=>p.id===event.actor)?.name??'Player'} · {event.intent.type}{event.intent.type==='advance'?` · pairing ${event.intent.pairing+1}`:''}</button></li>{/each}</ol><button onclick={exportLog}>Download game log</button><button class="primary" onclick={closeHistory}>{imported?'Close history':'Return to live game'}</button></div>{/if}
  <input class="file-input" type="file" accept="application/json,.json" aria-label="Import game log" bind:this={importInput} onchange={importLog}/>
 </div>

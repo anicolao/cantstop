@@ -50,6 +50,15 @@ export function sample(step:Transition,time:number,reduced=false):Frame {
    label=lightColumn?`Stop to claim ${lightColumn}`:'A little higher.';detail=lightColumn?'This summit is still at risk.':'Your saved positions have not moved.';
    if(p>=1)pieces=staticPieces(after);
  }
+ if(kind==='replace'){
+   const target=staticPieces(after),runners=target.filter(p=>p.runner),used=new Set<number>();
+   const origins=staticPieces(before).filter(p=>p.runner);
+   const matching=runners.map(piece=>{const slot=origins.findIndex((origin,i)=>!used.has(i)&&origin.column===piece.column&&origin.onBoard===piece.onBoard);if(slot>=0)used.add(slot);return slot;});
+   pieces=target.filter(piece=>!piece.runner);
+   runners.forEach((piece,i)=>{let slot=matching[i];if(slot<0){slot=origins.findIndex((_,j)=>!used.has(j));used.add(slot);}pieces.push({...piece,position:pos(origins[slot].position,piece.position,ramp(t,.1,1.2),.65)});});
+   label='A different route.';detail='Only this roll changes. Earlier progress stays.';
+   if(p>=1)pieces=target;
+ }
  if(['save','claim','win'].includes(kind)){
    const move=ramp(t,.2,1.25),leave=ramp(t,1.25,2.35);
    pieces=pieces.filter(piece=>{

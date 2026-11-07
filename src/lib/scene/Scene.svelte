@@ -12,9 +12,9 @@
  import {FINISH} from '../presentation/finish';
  import RunnerPodium from './RunnerPodium.svelte';
  import {pairingNumbers} from '../presentation/choices';
- import {pairings,PLAYERS,lengthOf} from '../model/game';
+ import {pairings,PLAYERS,lengthOf,type State as BoardState} from '../model/game';
  import Camera from './Camera.svelte';import Board from './Board.svelte';import Token from './Token.svelte';import Die from './Die.svelte';import Plaque from './Plaque.svelte';import Inscription from './Inscription.svelte';
- let {frame,phone=false,selected=2,runnerColumn,focus='table',preset='table',lowAngle=60,players=PLAYERS,orbit=false,onPair=()=>{},onDestination=()=>{},onMove=()=>{},onRoll=()=>{},onStop=()=>{},onReady=()=>{},onTargets=()=>{},onFraming=()=>{}}:{frame:Frame;phone?:boolean;selected?:number;runnerColumn?:number;focus?:string;preset?:string;lowAngle?:number;players?:{name:string}[];orbit?:boolean;onPair?:(n:number)=>void;onDestination?:(n:number)=>void;onMove?:()=>void;onRoll?:()=>void;onStop?:()=>void;onReady?:()=>void;onFraming?:(framing:BoardFraming)=>void;onTargets?:(targets:{name:string;x:number;y:number}[])=>void}=$props();
+ let {frame,directSelection=false,decisionReady=true,choiceState,canAct=true,phone=false,selected=2,runnerColumn,focus='table',preset='table',lowAngle=60,players=PLAYERS,orbit=false,onPair=()=>{},onDestination=()=>{},onMove=()=>{},onRoll=()=>{},onStop=()=>{},onReady=()=>{},onTargets=()=>{},onFraming=()=>{}}:{frame:Frame;directSelection?:boolean;decisionReady?:boolean;choiceState?:BoardState;canAct?:boolean;phone?:boolean;selected?:number;runnerColumn?:number;focus?:string;preset?:string;lowAngle?:number;players?:{name:string}[];orbit?:boolean;onPair?:(n:number)=>void;onDestination?:(n:number)=>void;onMove?:()=>void;onRoll?:()=>void;onStop?:()=>void;onReady?:()=>void;onFraming?:(framing:BoardFraming)=>void;onTargets?:(targets:{name:string;x:number;y:number}[])=>void}=$props();
  const {scene,renderer,invalidate,camera,size}=useThrelte();interactivity();
  let lib=$state.raw<Library>();let ready=$state(false);
  const table=slab(outline(28,25,.9),.25,.22),mat=slab(outline(24,21,.65),.06,.09);
@@ -26,17 +26,17 @@
  const boardX=$derived(landscape?-4.2:0);
  const boardZ=$derived(landscape?.25:phone?-1.1:-.8);
  const diceX=$derived(landscape?5.5:phone?0:-4.0),diceZ=$derived(landscape?-1.5:phone?6.25:7.7);
- const options=$derived(pairings(frame.state));
+ const options=$derived(pairings(choiceState??frame.state));
  const selection=$derived(options.find(p=>p.index===selected));
  const variant=$derived(selection?.variants.find(v=>runnerColumn===undefined||v.column===runnerColumn)??selection?.variants[0]);
  const ambiguous=$derived((selection?.variants.length??0)>1);
  const destinations=$derived((frame.state.phase==='choose'||frame.kind==='preview')&&variant&&(!ambiguous||runnerColumn!==undefined)?previewPositions(frame.state,variant.moves):[]);
  const closed=$derived(frame.claims.flat());
- const inactiveSums=$derived(selection?pairingNumbers(frame.state,selection,runnerColumn).filter(n=>n.inactive):[]);
+ const inactiveSums=$derived(selection?pairingNumbers(choiceState??frame.state,selection,runnerColumn).filter(n=>n.inactive):[]);
  const moveColumns=$derived(Object.keys(variant?.moves??{}).map(Number));
  const moveText=$derived(ambiguous?(runnerColumn===undefined?'CHOOSE A RUNNER':`MOVE ${runnerColumn} ONLY`):!variant?'NO LEGAL MOVE':moveColumns.length===1?`MOVE ${moveColumns[0]}${variant.moves[moveColumns[0]]===2?' TWICE':''}`:`MOVE ${moveColumns.join(' & ')}`);
  const samplePositions=$derived(focus==='runner'?[-1.5,0,1.5]:[-2.1,-.7,.7,2.1]);
- const isChoose=$derived(frame.state.phase==='choose'||frame.kind==='preview');
+ const isChoose=$derived(frame.state.phase==='choose'||frame.kind==='preview'||directSelection&&frame.state.phase==='decide');
  const riskNow=$derived(Object.entries(frame.state.runners).reduce((n,[c,p])=>n+p-(frame.state.saved[frame.state.active][+c]??0),0));
  const riskText=$derived(`${inactiveSums.length&&isChoose?inactiveSums.map(n=>`${n.number} ${n.reason}`).join(' · ')+' · ':''}${riskNow} steps at risk`);
  const diceFrame=$derived(frame.dice.map((value,i)=>{
@@ -121,24 +121,30 @@
   {#if isChoose}
    <T.Group position={[landscape?5.5:phone?0:-4.0,.04,landscape?.3:phone?7.85:9.4]}>
     {#each options as option,i}
-     <Plaque {lib} text={option.sums.join(' + ')} values={pairingNumbers(frame.state,option,option.index===selected?runnerColumn:undefined)} width={2.06} depth={.72} position={[(i-1)*2.32,0,0]} selected={i===selected} disabled={!option.variants.length} onactivate={()=>onPair(i)}/>
+     <Plaque {lib} text={option.sums.join(' + ')} values={pairingNumbers(choiceState??frame.state,option,option.index===selected?runnerColumn:undefined)} width={2.06} depth={.72} position={[(i-1)*2.32,0,0]} selected={i===selected} disabled={!canAct||!option.variants.length} onactivate={()=>onPair(i)}/>
     {/each}
    </T.Group>
    {#if ambiguous}
     <T.Group position={[landscape?5.5:phone?0:4,.04,landscape?1.8:phone?8.65:6.0]}>
      {#each selection?.variants??[] as v,i}
-      <Plaque {lib} text={`RUNNER ON ${v.column}`} position={[(i-.5)*(phone?3.6:2.9),0,0]} width={phone?3.3:2.65} depth={phone&&!landscape?.65:.86} selected={runnerColumn===v.column} onactivate={()=>onDestination(v.column!)}/>
+      <Plaque {lib} text={`RUNNER ON ${v.column}`} position={[(i-.5)*(phone?3.6:2.9),0,0]} width={phone?3.3:2.65} depth={phone&&!landscape?.65:.86} selected={runnerColumn===v.column} disabled={!canAct} onactivate={()=>onDestination(v.column!)}/>
      {/each}
     </T.Group>
    {/if}
-   <Plaque {lib} text={moveText} position={[landscape?5.5:phone?0:4.0,.04,(landscape?1.95:phone?9.05:6.35)+(ambiguous?(phone&&!landscape?.4:1.3):0)]} width={phone?7.05:5.45} depth={ambiguous&&phone&&!landscape?.85:1.1} selected disabled={!variant||(ambiguous&&runnerColumn===undefined)} onactivate={onMove}/>
-   <Inscription text={riskText} position={[landscape?5.5:phone?0:4,.08,phone&&!landscape&&ambiguous?9.95:(landscape?3.0:phone?9.95:7.6)+(ambiguous?1.3:0)]} width={phone?5:4.4} height={.40}/>
+   {#if !directSelection}<Plaque {lib} text={moveText} position={[landscape?5.5:phone?0:4.0,.04,(landscape?1.95:phone?9.05:6.35)+(ambiguous?(phone&&!landscape?.4:1.3):0)]} width={phone?7.05:5.45} depth={ambiguous&&phone&&!landscape?.85:1.1} selected disabled={!variant||(ambiguous&&runnerColumn===undefined)} onactivate={onMove}/>{/if}
+   {#if !directSelection}<Inscription text={riskText} position={[landscape?5.5:phone?0:4,.08,phone&&!landscape&&ambiguous?9.95:(landscape?3.0:phone?9.95:7.6)+(ambiguous?1.3:0)]} width={phone?5:4.4} height={.40}/>{/if}
   {:else if frame.state.phase==='finished'}
    <Plaque {lib} text={`THREE SUMMITS. ${players[frame.state.active]?.name.toUpperCase()} WINS.`} position={[landscape?5.5:phone?0:4,.04,landscape?2:phone?8.15:6.7]} width={phone?7:6.3} depth={1.05} selected/>
-  {:else}
+  {:else if !directSelection}
    <Plaque {lib} text={frame.state.phase==='ready'?'ROLL DICE':'STOP & SAVE'} position={[landscape?5.5:phone?0:4.0,.04,landscape?1.25:phone?8.05:6.25]} width={phone?7.05:5.45} depth={1.0} selected onactivate={frame.state.phase==='ready'?onRoll:onStop}/>
    {#if frame.state.phase!=='ready'}<Plaque {lib} text="ROLL AGAIN" position={[landscape?5.5:phone?0:4.0,.04,landscape?2.8:phone?9.15:7.85]} width={phone?7.05:5.45} depth={.95} onactivate={onRoll}/>{/if}
    <Inscription text={riskText} position={[landscape?5.5:phone?0:-4.0,.05,landscape?4.0:phone?9.95:9.5]} width={4.8} height={.40}/>
+  {/if}
+  {#if directSelection&&frame.state.phase==='decide'}
+   <T.Group position={[landscape?5.5:phone?0:4,.04,landscape?(ambiguous?2.9:1.85):phone?(ambiguous?9.5:8.95):(ambiguous?7.8:6.65)]}>
+    <Plaque {lib} text="STOP & SAVE" position={[phone?-1.8:-1.45,0,0]} width={phone?3.45:2.75} depth={.95} selected disabled={!canAct||!decisionReady} onactivate={onStop}/>
+    <Plaque {lib} text="ROLL AGAIN" position={[phone?1.8:1.45,0,0]} width={phone?3.45:2.75} depth={.95} disabled={!canAct||!decisionReady} onactivate={onRoll}/>
+   </T.Group>
   {/if}
  {/if}
  {#if focus==='runner'||focus==='token'}
