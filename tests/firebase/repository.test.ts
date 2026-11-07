@@ -15,11 +15,11 @@ test('four authenticated clients share committed choices and replay after a turn
  async function act(seat:number,intent:Intent){await appendFirestore(clients[seat],'test','FIRE1',`p${seat}`,{id:`action-${current.revision+1}`,actor:`p${seat}`,expectedRevision:current.revision,intent},views[seat]);current=apply(current,`p${seat}`,intent);await until(()=>views.every(v=>v.length===current.revision));for(const log of views)expect(replay(log)).toEqual(current);}
  try{
   await act(0,{type:'create',name:'Sam'});for(let i=1;i<4;i++)await act(i,{type:'join',name:`Friend ${i}`});
-  await act(0,{type:'begin',seed:'cloud-choice-log'});await act(0,{type:'roll'});
+  await act(0,{type:'begin',seed:'cloud-choice-log'});expect(current.game!.phase).toBe('choose');
   const {pairings}=await import('../../src/lib/model/game');const p=pairings(current.game!).find(p=>p.variants.length)!;
   await act(0,{type:'advance',pairing:p.index,...(p.variants.length>1?{column:p.variants[0].column}: {})});await act(0,{type:'stop'});expect(current.game!.active).toBe(1);
-  const pending={id:'action-8',actor:'p0',expectedRevision:7,intent:{type:'stop'} as Intent};await appendFirestore(clients[0],'test','FIRE1','p0',pending);
-  expect((await getDocs(collection(tableRef(clients[0],'test','FIRE1'),'events'))).size).toBe(8);
+  const pending={id:'action-7',actor:'p0',expectedRevision:6,intent:{type:'stop'} as Intent};await appendFirestore(clients[0],'test','FIRE1','p0',pending);
+  expect((await getDocs(collection(tableRef(clients[0],'test','FIRE1'),'events'))).size).toBe(7);
   await expect(appendFirestore(clients[0],'test','FIRE1','p0',{...pending,intent:{type:'roll'}})).rejects.toThrow('already been used');
  }finally{stops.forEach(stop=>stop());}
 },30000);

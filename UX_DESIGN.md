@@ -218,16 +218,16 @@ The lesson never manipulates dice inside a normal match. Every step can be repea
 
 **Intention:** “Choose a good pair and decide whether to push my luck.”
 
-1. **Turn begins:** the dice arrive at the named seat, three runners are available, and the action is **Roll dice**. Stop is absent because nothing has been gained.
-2. **Roll:** one input rolls all four dice. While the result is settling, repeated activation does not start another roll. Dice positions remain stable for the decision.
-3. **Choose a pairing:** show all distinct outcomes, including unavailable outcomes with a short reason. Selecting a legal one highlights exact board destinations and lists spaces gained. It spends nothing yet.
-4. **Resolve an ambiguous runner:** if one unused runner could start either of two new columns, offer the two destination choices as separate outcomes. The player chooses before confirming. Do not silently favor the lower number or the first die pair.
-5. **Commit:** a label such as **Move 6 and 8**, **Move 7 twice**, or **Move 6 only** names the actual effect. Runners move; the at-risk total changes. Inspection or selection alone never moves pieces.
-6. **Decide:** show what stopping saves, including any claim. Offer **Stop & save** and **Roll again**. The current risk remains on screen until the decision is made.
-7. **Continue:** rolling again retains current runners and saved markers. Return to pairing or resolve a bust. There is no Stop action after seeing a new unresolved roll: choosing to roll has already accepted its risk.
-8. **Stop:** saved markers move to runner positions, new claims settle, runners return to their tray, and the next player’s dice become available. A concise history entry records the gain and claims. There is no routine confirmation dialog after pressing the clearly labeled Stop action.
+1. **Turn begins:** the dice arrive at the named seat and roll automatically. Stop is absent because nothing has been gained. No initial Roll button is required.
+2. **Read the roll:** dice settle into stable positions. Repeated input during animation cannot roll again.
+3. **Choose a pairing:** show the three pairings, marking unavailable sums. Selecting a legal pairing moves the runners immediately and updates the risk total.
+4. **Resolve an ambiguous runner:** if the final unused runner could start either of two columns, choose its destination. That choice applies the move directly, with no confirmation button.
+5. **Change the route:** pairing tabs remain visible. Selecting a different pairing restores the previous choice and applies the new one from the same pre-selection board. Earlier rolls and saved pieces remain intact. These changes are visible to the other players and survive reload.
+6. **Decide:** **Stop & save** banks the selected progress; **Roll again** commits the current pairing and takes the next risk. These controls require a resolved pairing and destination. There is no separate Move button.
+7. **Continue:** a new roll retains earlier progress and opens a fresh reversible pairing choice, or resolves a bust. Stop is unavailable until that new roll has a legal selected pairing.
+8. **Stop:** saved markers move, claims settle, and runners return to their podium. Unless the game ended, the next seat’s dice roll automatically after the save animation. A bust likewise passes and rolls automatically.
 
-Two inputs per pairing—select, then confirm—are intentional in the first design. They make consequences readable and prevent an accidental touch from committing. Even a roll with only one legal outcome pauses at its preview with an explicit move action. A future faster-play option should be reviewed against that protection, rather than assumed now.
+The reversible board placement provides feedback without an extra confirmation tap. Only the latest roll is reversible; choosing to roll again accepts its risk, and saving commits the chosen route.
 
 **Done well when:** before committing, a person can point to the destination of every usable sum and say what is at risk if they roll again.
 
@@ -237,7 +237,7 @@ Two inputs per pairing—select, then confirm—are intentional in the first des
 
 When no pairing can advance anything, show **Bust · No legal move**. Briefly show the rejected totals and why they fail, then remove only the runners and this turn’s illuminated track trails. Keep every saved marker and previously claimed column. Copy names the specific loss: “Those 6 steps are lost. Your saved positions remain.”
 
-The turn ends automatically. The next player can roll as soon as their controls appear; nobody must dismiss a modal before the group continues. The previous outcome persists as a compact banner/history item, so it can be read after motion finishes. There is no Retry roll, paid rescue, or undo of the random result.
+The turn ends automatically. The next player’s first roll happens automatically after the bust animation; nobody must dismiss a modal before the group continues. The previous outcome persists as a compact banner/history item, so it can be read after motion finishes. There is no Retry roll, paid rescue, or undo of the random result.
 
 ### Journey E — reach a summit, claim, and win
 
@@ -275,7 +275,7 @@ Leaving a view keeps the player’s seat and progress. Base camp offers **Contin
 
 If a roll or move was already accepted, return to its result rather than offering a second roll or applying it twice. If it was not accepted, restore the same decision. Catch up to the current table directly, without replaying every missed animation. If a seat cannot be recovered, say so and offer View table; do not silently assign a different player’s seat.
 
-An absent active player retains their turn; there is no automatic roll, save, skip, or replacement player. In this untimed first design, others can wait, leave and resume later, or explicitly create another table. Local one-device play offers a true Pause overlay. A shared online table does not promise a pause when a single player opens a menu.
+An absent active player retains their decision. The forced opening roll is derived automatically; there is no automatic risk-taking reroll, save, skip, or replacement player. In this untimed first design, others can wait, leave and resume later, or explicitly create another table. Local one-device play offers a true Pause overlay. A shared online table does not promise a pause when a single player opens a menu.
 
 ## 6. Critical decisions and state coverage
 
@@ -285,11 +285,11 @@ These are separate moments, not one continuous turn. Explain them through the bo
 
 | Situation | What the person sees | Allowed action / outcome |
 | --- | --- | --- |
-| Before first roll | Three unused runners; Roll dice | Roll. No empty save action. |
-| Legal pairing selected | Equations, destination rings, exact advance summary | Change selection, inspect, or explicitly move. |
+| Before first roll | Three unused runners; automatic dice motion | No input required. No empty save action. |
+| Legal pairing selected | Pawns occupy the selected route; equations remain | Change pairing, inspect, roll again, or save. |
 | Both sums usable | Two destinations or a doubled advance | Both advances are included; no discretionary skipping. |
 | Only one sum usable | “Move 6 only”; other sum names its obstacle | Advance once. It is not a bust. |
-| One unused runner; two new columns | Two destination choices for the same pairing | Select which gets the final runner, then confirm. |
+| One unused runner; two new columns | Two destination choices for the same pairing | Select which gets the final runner; apply immediately. |
 | Equal totals | “7 + 7 · Move 7 twice” | Use one runner for two advances; one if the summit leaves only one space. |
 | Duplicate dice produce identical outcomes | One outcome card with representative equations | No repeated choices that do the same thing. |
 | Three runners in use | Active column numbers; no unused runner icons | Other numbers explain “No runner available.” |
@@ -308,9 +308,9 @@ A preview never promises movement beyond the summit. Closed columns remain in th
 
 ### Action availability through a turn
 
-**Turn begins → Roll dice → Choose pairing → Confirm move → Stop & save OR Roll again.** A new roll returns to the choice step or ends in a bust. Stop settles claims and either passes the turn or ends the game. Every interruption must resume at one of these recognizable points.
+**Turn begins → Automatic roll → Select pairing (moves immediately; changeable) → Stop & save OR Roll again.** A new roll returns to the choice step or ends in a bust. Stop settles claims and either passes the turn or ends the game. Every interruption must resume at one of these recognizable points.
 
-The UI never offers Stop and unresolved pairing choices together. It never offers Roll again while the first roll is still being resolved. Menus and inspectors remain secondary to this sequence.
+Pairing tabs stay beside Stop and Roll again after a resolved choice; these decision controls are disabled while a new final-pawn destination is unresolved. It never offers Roll again while the first roll is still being resolved. Menus and inspectors remain secondary to this sequence.
 
 ## 7. Accessibility and comfortable play
 
@@ -362,7 +362,7 @@ For visual review, inspect desktop, small phone, tablet in both orientations, ph
 ### Decisions to settle in review
 
 1. **Art direction:** do the new diamond board, realistic dice, materials, and lighting deliver the rich board-game/video-game character? Which material and lighting choices need refinement?
-2. **Pairing cadence:** does select → preview → confirm provide enough reassurance to justify the extra tap on repeated rolls?
+2. **Pairing cadence:** does direct selection with reversible placement make repeated rolls faster while keeping the risk clear?
 3. **Tabletop priority:** is the primary shared use a horizontal touch table, a TV with phones, or both? The control model supports both, but their physical review needs differ.
 4. **Rules baseline:** accept the stated classic behavior, particularly partial pairings, the last-runner choice, occupied summits, starting-player ritual, and three claims for all player counts.
 5. **Scope:** accept invite-only live play, local shared play, and the guided lesson as the first complete experience.

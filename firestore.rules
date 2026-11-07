@@ -39,7 +39,7 @@ service cloud.firestore {
     allow read: if signedIn();
     allow create: if signedIn()
      && request.resource.data.keys().hasOnly(['version','id','sequence','actor','intent'])
-     && request.resource.data.version==1 && request.resource.data.id is string && request.resource.data.id.matches('[A-Za-z0-9_-]{1,128}')
+     && request.resource.data.version in [1,2] && request.resource.data.id is string && request.resource.data.id.matches('[A-Za-z0-9_-]{1,128}')
      && request.resource.data.actor is string && request.resource.data.sequence is int
      && intent(request.resource.data.intent)
      && sequence==string(request.resource.data.sequence)

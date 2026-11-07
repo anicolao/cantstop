@@ -1,6 +1,6 @@
 # Can't Stop game and replay protocol
 
-Protocol 1 supports two, three, or four individual players. Four dice are paired
+Protocol 2 supports two, three, or four individual players. Four dice are paired
 into two sums. Every usable sum must advance; doubles advance twice, capped at
 the summit. There are three temporary runners. When one runner could start either
 of two new columns, the player explicitly chooses. A full pairing is available
@@ -25,17 +25,33 @@ Only these actions enter history:
 - `create {name}` and `join {name}`: choose a seat.
 - `invite-bot {id,name}`: the host chooses an optional companion.
 - `begin {seed}`: the host starts or restarts with a fresh entropy choice.
-- `roll {}`: the active player chooses to roll.
-- `advance {pairing,column?}`: commit a pairing (index 0–2) and, if needed, the
-  final-runner destination.
+- `roll {}`: the active player risks progress by choosing to roll again.
+- `advance {pairing,column?}`: select a pairing (index 0–2) and, if needed, the
+  final-runner destination. Selecting again replaces only this roll’s moves.
 - `stop {}`: the active player chooses to bank progress.
 
 There are no events for dice results, positions, running totals, claims, busts,
 turn changes, winners, animation completion, pair previews, camera settings, or
 speed. `replay` validates every intent in order and derives the whole table.
-Protocol 1 hashes the begin seed with FNV-1a and uses the frozen seeded dice
+Protocols 1 and 2 hash the begin seed with FNV-1a and uses the frozen seeded dice
 algorithm and roll-index derivation in `src/lib/model/game.ts`. Change the protocol
 version before changing those rules or random semantics.
+
+Protocol 2 derives the first roll of a turn from `begin`, `stop`, or a busting
+`roll` action. Opening busts pass and roll for the next seat deterministically.
+No extra events are written for those forced rolls. The animation queue displays
+the save/bust and each following roll in sequence; its timing stays outside history.
+
+The reducer retains a derived pre-selection board for the current dice. Every
+`advance` applies to that same board, so a different pairing or last-pawn
+destination restores the previous choice and applies the new one without
+accumulating steps. `roll` commits the selection and starts a fresh choice;
+`stop` commits it into saved progress. Reconnect and log import reconstruct the
+same reversible choice from history. Saved positions and progress from earlier
+rolls are never undone by a pairing change.
+
+Existing protocol-1 logs keep their original explicit roll/advance rules. Tables
+cannot change protocol mid-log. New tables use protocol 2.
 
 ## Persistence and trust
 

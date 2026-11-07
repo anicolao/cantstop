@@ -28,7 +28,7 @@ The root opens the playable game. All assets needed for rendering are local; wor
 
 The gallery contains the rotated square board, ruby dice, black runners, colored saved markers, action plaques, and material samples. Orbit and zoom are available in the gallery; table, overhead, and low cameras are available throughout. Low angle shows a live Tilt slider (15–80°), including in focus mode; its setting is retained when switching views. All views use the same material library and geometry.
 
-The lab examples include: a ready table, pairing, dice rolling, a double advance, stopping, a complete turn, busting, a provisional summit, claiming, victory, a final-runner choice, and reconnection. Each has play/pause, replay, a scrubber, speed, loop, and reduced-motion controls. Space toggles playback; arrow keys seek in 0.1-second increments when focus is outside a form control. Beat markers jump to review points. The reconnection example is a presentation study, not a real network connection.
+The lab examples include: a ready table, pairing, dice rolling, a double advance, changing a pairing, stopping, a complete turn, busting, a provisional summit, claiming, victory, a final-runner choice, and reconnection. Each has play/pause, replay, a scrubber, speed, loop, and reduced-motion controls. Space toggles playback; arrow keys seek in 0.1-second increments when focus is outside a form control. Beat markers jump to review points. The reconnection example is a presentation study, not a real network connection.
 
 Switch between **Desktop**, **Portrait**, and **Landscape** in the toolbar. The two phone previews preserve their 390 × 844 and 844 × 390 canvas proportions. Portrait enlarges the board by a further 17% to maximize tile size, with a compact player row and closer control spacing: the empty side vertices are cropped, while all eleven tracks and their complete number labels stay visible. Player medallions move into a compact top row so they remain readable at the larger scale. On an actual narrow viewport the workshop becomes horizontally browsable; focus mode fills the screen with the game. Rotating a phone to landscape enlarges the board to nearly fill the screen height with a small border, and puts dice/actions on the right, preserving the current state and timeline. Tabletop and TV modes are intentionally deferred.
 
@@ -116,6 +116,19 @@ bun x firebase deploy --only auth,firestore:rules --project cantstop-preview-ani
 
 The pinned Firebase CLI supports `deploy --only auth`; a console visit or billing
 upgrade is not required for anonymous Auth provisioning.
+New tables roll automatically at the start of each turn. Click a pairing to move
+the pawns immediately; choose a last-pawn destination only when required. Click a
+different pairing before rolling again or saving to replace this roll’s moves.
+The pairing tabs remain available beside **Roll again** and **Stop & save**.
+Protocol 2 derives automatic rolls and reconstructs reversible selections from
+the intent log; old protocol-1 tables and imports retain their original rules.
+The lab’s **Change your pairing** example demonstrates the shared replacement
+animation. Original staged lab examples still expose each action separately.
+
+CI verifies types, unit tests, Firebase rules, builds, and browser scenarios.
+The Pages publishing workflow runs independently and does not run or depend on
+those checks; a failing verification job cannot block a buildable preview.
+
 The default view is 60°. Settings offer Overhead and Standard/Fast/Blazing motion
 (1×/2×/4×); preferences stay on the device and never alter the game log. History
 lets you inspect any action boundary, download a JSON log, and return to the live
@@ -124,7 +137,7 @@ table. Open a downloaded log from the welcome screen for a read-only replay.
 Gameroom uses the same `?launch=create|join&table=CODE&name=NAME` contract as
 Cribbage. `public/gameroom-launch.json` declares support. A guest arriving before
 the host waits; names are preferences, not identities. Reopening an invitation
-retains the existing local/Firebase identity and does not duplicate a seat. The
+retains the existing anonymous Firebase identity and does not duplicate a seat. The
 separate Gameroom integration change recognizes the exact Can't Stop WebURL;
 adding or enabling a production catalog entry remains a catalog-owner action.
 

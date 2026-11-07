@@ -15,10 +15,10 @@ async function readEvents(request:APIRequestContext,room:string){
 }
 const code=()=>Math.random().toString(16).slice(2,10).toUpperCase().padEnd(8,'A');
 async function settled(page:Page){await page.bringToFront();await expect(page.locator('[data-ready]')).toHaveAttribute('data-ready','true',{timeout:90000});await expect(page.locator('.game-shell')).toHaveAttribute('data-moving','false',{timeout:30000});await page.waitForFunction(()=>document.fonts.status==='loaded'&&document.querySelector('[data-ready]')?.getAttribute('data-ready')==='true'&&document.querySelector('.game-shell')?.getAttribute('data-moving')==='false');}
-async function clickMesh(page:Page,name:string,commits=true){
+async function clickMesh(page:Page,name:string,commits=true,occurrence=0){
  await settled(page);await expect(page.locator('.game-shell')).toHaveAttribute('data-can-act','true');const view=page.locator('.table-view');
  await expect.poll(async()=>JSON.parse((await view.getAttribute('data-targets'))??'[]').some((t:{name:string})=>t.name===name)).toBe(true);
- const revision=Number(await page.locator('.game-shell').getAttribute('data-revision'));const target=JSON.parse((await view.getAttribute('data-targets'))!).find((t:{name:string})=>t.name===name),box=(await view.boundingBox())!;await page.mouse.click(box.x+target.x,box.y+target.y);if(commits)await expect.poll(async()=>Number(await page.locator('.game-shell').getAttribute('data-revision')),{timeout:30000}).toBeGreaterThan(revision);
+ const revision=Number(await page.locator('.game-shell').getAttribute('data-revision'));const target=JSON.parse((await view.getAttribute('data-targets'))!).filter((t:{name:string})=>t.name===name)[occurrence],box=(await view.boundingBox())!;await page.mouse.click(box.x+target.x,box.y+target.y);if(commits)await expect.poll(async()=>Number(await page.locator('.game-shell').getAttribute('data-revision')),{timeout:30000}).toBeGreaterThan(revision);
 }
 test('four independent clients launch, take turns, restore, and replay only player choices',async({browser,request},info)=>{
  // Independent devices do not share one browser GPU process. Keep all four full
@@ -39,15 +39,22 @@ test('four independent clients launch, take turns, restore, and replay only play
   expect(await readEvents(request,room)).toEqual(initial);
   await pages[0].reload();await settled(pages[0]);expect(await readEvents(request,room)).toEqual(initial);
   await pages[0].getByRole('button',{name:'Settings',exact:true}).click();await expect(pages[0].getByLabel('View',{exact:true})).toHaveValue('overhead');await pages[0].getByLabel('Animation speed',{exact:true}).selectOption('blazing');await pages[0].getByRole('button',{name:'Back to the table'}).click();
-  await clickMesh(pages[0],'ROLL DICE');await settled(pages[0]);
-  const rolled=await readEvents(request,room),position=replay(rolled);
-  if(position.game!.phase==='choose'){
-   const {pairings}=await import('../src/lib/model/game');const pair=pairings(position.game!)[0];await clickMesh(pages[0],pair.sums.join(' + '),false);await expect(pages[0].locator('.table-view')).toHaveAttribute('data-selected-pairing','0');
-   const targets=JSON.parse((await pages[0].locator('.table-view').getAttribute('data-targets'))!);const move=targets.find((t:{name:string})=>t.name.startsWith('MOVE '));expect(move).toBeTruthy();await clickMesh(pages[0],move.name);await settled(pages[0]);for(const page of pages)await expect(page.locator('.table-view')).toHaveAttribute('data-selected-pairing','0');await clickMesh(pages[0],'STOP & SAVE');
-  }
-  for(const page of pages)await settled(page);
-  const final=await readEvents(request,room),restored=replay(final);expect(restored.game!.active).toBe(1);
-  for(const page of pages){await expect(page.locator('.game-shell')).toHaveAttribute('data-revision',String(final.length));await expect(page.locator('.table-view')).toHaveAttribute('data-phase','ready');}
+  const view=pages[0].locator('.table-view');await expect(view).toHaveAttribute('data-phase','choose');
+  await expect(pages[0].getByRole('button',{name:'Roll dice',exact:true})).toHaveCount(0);await expect(pages[0].getByRole('button',{name:'Move selected pairing',exact:true})).toHaveCount(0);
+  const {pairings}=await import('../src/lib/model/game');const {apply}=await import('../src/game/engine');const opening=replay(initial);
+  const first=pairings(opening.game!)[0],second=pairings(opening.game!)[1];
+  await clickMesh(pages[0],first.sums.join(' + '));await settled(pages[0]);
+  await clickMesh(pages[0],second.sums.join(' + '),true,first.sums.join(' + ')===second.sums.join(' + ')?1:0);await settled(pages[0]);
+  let log=await readEvents(request,room);expect(log).toHaveLength(initial.length+2);
+  expect(replay(log).game).toEqual(apply(opening,opening.players[0].id,{type:'advance',pairing:1}).game);
+  for(const page of pages)await expect(page.locator('.table-view')).toHaveAttribute('data-selected-pairing','1');
+  await pages[0].reload();await settled(pages[0]);await expect(view).toHaveAttribute('data-selected-pairing','1');
+  await clickMesh(pages[0],first.sums.join(' + '));await settled(pages[0]);
+  log=await readEvents(request,room);expect(replay(log).game).toEqual(apply(opening,opening.players[0].id,{type:'advance',pairing:0}).game);
+  await clickMesh(pages[0],'STOP & SAVE');for(const page of pages)await settled(page);
+  const final=await readEvents(request,room),restored=replay(final);expect(restored.game!.active).toBe(1);expect(restored.game!.phase).toBe('choose');
+  expect(final.slice(initial.length).map((e:{intent:{type:string}})=>e.intent.type)).toEqual(['advance','advance','advance','stop']);
+  for(const page of pages){await expect(page.locator('.game-shell')).toHaveAttribute('data-revision',String(final.length));await expect(page.locator('.table-view')).toHaveAttribute('data-phase','choose');}
   expect((await readEvents(request,room)).length).toBe(final.length);
   await pages[0].getByRole('button',{name:'History',exact:true}).click();await pages[0].getByRole('slider',{name:'Replay action',exact:true}).fill('5');
   const download=pages[0].waitForEvent('download');await pages[0].getByRole('button',{name:'Download game log'}).click();const file=await download;expect(file.suggestedFilename()).toBe(`cantstop-${room}.json`);
@@ -62,13 +69,13 @@ test('a phone creates a table with a companion and restores personal settings',a
  try{
   await page.goto('/');await page.getByLabel('Your name').fill('Ari');await page.getByRole('button',{name:'New table',exact:true}).click();await page.getByRole('button',{name:'Add companion'}).click();await page.getByRole('button',{name:'Start game'}).click();await settled(page);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBe(390);
-  await page.getByRole('button',{name:'Settings',exact:true}).click();await page.getByLabel('Animation speed',{exact:true}).selectOption('blazing');await page.getByRole('button',{name:'Back to the table'}).click();await clickMesh(page,'ROLL DICE');await settled(page);await page.screenshot({path:'artifacts/game-phone.png'});
+  await page.getByRole('button',{name:'Settings',exact:true}).click();await page.getByLabel('Animation speed',{exact:true}).selectOption('blazing');await page.getByRole('button',{name:'Back to the table'}).click();await expect(page.locator('.table-view')).toHaveAttribute('data-phase','choose');const targets=JSON.parse((await page.locator('.table-view').getAttribute('data-targets'))!);const pairing=targets.find((t:{name:string})=>/^\d+ \+ \d+$/.test(t.name));expect(pairing).toBeTruthy();await clickMesh(page,pairing.name);await settled(page);await expect(page.getByRole('button',{name:'Stop and save',exact:true})).toBeEnabled();await clickMesh(page,'ROLL AGAIN');await settled(page);await page.screenshot({path:'artifacts/game-phone.png'});
   await page.reload();await settled(page);await page.getByRole('button',{name:'Settings',exact:true}).click();await expect(page.getByLabel('Animation speed',{exact:true})).toHaveValue('blazing');
  }finally{await context.close();}
 });
 
 test('a downloaded intent log opens as a read-only, seekable game',async({page})=>{
- const {apply,initialState}=await import('../src/game/engine');let current=initialState();const log:import('../src/game/engine').Event[]=[];
+ const {apply,initialState}=await import('../src/game/engine');let current=initialState(1);const log:import('../src/game/engine').Event[]=[];
  const add=(actor:string,intent:import('../src/game/engine').Intent)=>{log.push({version:1,id:`import-${log.length+1}`,sequence:log.length+1,actor,intent});current=apply(current,actor,intent);};
  add('alex',{type:'create',name:'Alex'});add('sam',{type:'join',name:'Sam'});add('alex',{type:'begin',seed:'read-only-log'});add('alex',{type:'roll'});add('alex',{type:'advance',pairing:0});add('alex',{type:'stop'});
  await page.goto('/');await page.getByLabel('Import game log',{exact:true}).setInputFiles({name:'game.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(log))});await settled(page);

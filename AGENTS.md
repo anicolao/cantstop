@@ -13,6 +13,13 @@ setup or switch to the billing-gated Identity Platform initialization API.
 
 The ordered, versioned player-intent log is canonical. Record choices, never dice
 outcomes, positions, turns, claims, scores, winners, or animation deadlines.
+New tables use protocol 2: turn-opening rolls are derived automatically, and
+pairing selections replace only the current roll until Roll again or Stop & save.
+Keep protocol-1 replay unchanged and reject mixed-version logs. Never write
+synthetic roll events for forced opening throws. Pairing and last-pawn mesh
+choices apply directly; no separate Move confirmation in the live game.
+Pages previews build and deploy independently of CI verification results.
+
 Replay derives outcomes deterministically from the begin intent's seed. Clients
 are trusted; validate legal actions, attribution, revisions, and retry IDs.
 Settings (60° default camera, optional overhead, Standard/Fast/Blazing motion)
