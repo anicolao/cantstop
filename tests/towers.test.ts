@@ -1,4 +1,5 @@
 import {test,expect} from 'bun:test';
+import {automaticMove} from '../src/game/automatic-move';
 import {apply,replay,initialState,parseIntent,evolve,type Event,type Intent} from '../src/game/engine';
 import {equivalentMove,fixture,pairings} from '../src/lib/model/game';
 import {sample} from '../src/lib/presentation/frame';
@@ -70,4 +71,46 @@ test('stream cursor rejects history, duplicates, delayed data and malformed reco
 test('a real throw during connection is accepted from the first snapshot without replaying older history',()=>{
  const cursor=new RollCursor(now);
  expect(cursor.update({old:event('old','old',{capturedAt:now-1}),fresh:event('fresh','fresh',{capturedAt:now+1,receivedAt:now+1})}).map(r=>r.eventId)).toEqual(['fresh']);
+});
+
+test('tower automatic moves pause on consecutive equal faces across fresh IDs and reloads',()=>{
+ const t=table();t.send('p0',roll('first','first'));expect(automaticMove(t.state,t.log)).toEqual({type:'advance',pairing:0});
+ t.send('p0',automaticMove(t.state,t.log)!);const runners=structuredClone(t.state.game!.runners);
+ t.send('p0',roll('repeat','repeat',[1,3,3,3]));expect(automaticMove(t.state,t.log)).toBeNull();expect(t.state.game!.runners).toEqual(runners);
+ // Another reading overwrites the unplayed duplicate; the bridge must be free to deliver it.
+ t.send('p0',roll('repeat-again','repeat-again'));expect(automaticMove(replay(t.log),t.log)).toBeNull();expect(t.state.game!.runners).toEqual(runners);
+ // A legitimate identical throw remains playable by an ordinary manual selection.
+ t.send('p0',{type:'advance',pairing:0});expect(t.state.game!.runners).toEqual({4:2,6:2});
+ t.send('p0',roll('different','different',[3,3,3,3]));expect(automaticMove(t.state,t.log)).toEqual({type:'advance',pairing:0});
+});
+
+test('tower corrections replace their throw without disabling its first automatic move',()=>{
+ const t=table();t.send('p0',roll('first','first'));t.send('p0',automaticMove(t.state,t.log)!);
+ t.send('p0',roll('correction','first',[2,2,2,2]));expect(automaticMove(t.state,t.log)).toEqual({type:'advance',pairing:0});
+ t.send('p0',automaticMove(t.state,t.log)!);
+ t.send('p0',roll('second','second',[2,2,2,2]));expect(automaticMove(t.state,t.log)).toBeNull();
+ t.send('p0',roll('second-correction','second',[2,2,2,2]));expect(automaticMove(t.state,t.log)).toBeNull();
+ t.send('p0',roll('changed-correction','second',[3,3,3,3]));expect(automaticMove(t.state,t.log)).toEqual({type:'advance',pairing:0});
+});
+
+for(const protocol of [2,3] as const)test(`v${protocol}: an identical opening throw can auto-move on the next human's turn`,()=>{
+ const t=table(protocol);t.send('p0',roll('first','first'));t.send('p0',automaticMove(t.state,t.log)!);t.send('p0',{type:'stop'});
+ t.send('p1',roll('next-person','next-person'));expect(automaticMove(t.state,t.log)).toEqual({type:'advance',pairing:0});
+});
+
+test('digital equivalent moves remain automatic and selecting a new dice source starts fresh',()=>{
+ const digital=initialState();digital.game={...empty(),dice:[1,1,1,1]};expect(automaticMove(digital,[])).toEqual({type:'advance',pairing:0});
+ const t=table();t.send('p0',roll('first','first'));t.send('p0',automaticMove(t.state,t.log)!);
+ t.send('p0',{type:'dice-source',tower:'tower-b'});t.send('p0',{type:'tower-roll',tower:'tower-b',eventId:'other-source',rollId:'other-source',dice:[3,1,3,3]});expect(automaticMove(t.state,t.log)).toEqual({type:'advance',pairing:0});
+});
+
+test('the 5,4,6,2 incident cannot turn repeated readings into a forced climb and bust',()=>{
+ const t=table();t.send('p0',roll('opening','opening',[5,4,3,2]));t.send('p0',{type:'advance',pairing:0});
+ t.send('p0',roll('physical-throw','physical-throw',[5,4,6,2]));expect(automaticMove(t.state,t.log)).toBeNull();
+ t.send('p0',{type:'advance',pairing:0});const progress=structuredClone(t.state.game!.runners);
+ for(let i=0;i<9;i++){
+  t.send('p0',roll(`false-reading-${i}`,`false-roll-${i}`,[5,4,6,2]));
+  expect(equivalentMove(t.state.game!)).toEqual({type:'advance',pairing:0});
+  expect(automaticMove(t.state,t.log)).toBeNull();expect(t.state.game!.runners).toEqual(progress);expect(t.state.game!.active).toBe(0);
+ }
 });

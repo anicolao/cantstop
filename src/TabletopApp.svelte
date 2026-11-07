@@ -1,4 +1,5 @@
 <script lang="ts">
+ import {automaticMove} from './game/automatic-move';
  import DiceTowerPicker from './lib/components/DiceTowerPicker.svelte';
  import DiceTowerBridge from './lib/components/DiceTowerBridge.svelte';
  import {savedTower} from './game/towers/model';
@@ -12,7 +13,7 @@
  import {randomId} from './game/random-id';
  import {previewScope} from './firebase';
  import {frameFor,transitions} from './game/presentation';
- import {pairings,equivalentMove,type State as BoardState} from './lib/model/game';
+ import {pairings,type State as BoardState} from './lib/model/game';
  import {sample} from './lib/presentation/frame';
  import type {Transition} from './lib/presentation/catalog';
  import {assignSeats,seatPose,seatTravel,TABLETOP_SPAN,type SeatId,type SeatPose} from './lib/presentation/tabletop';
@@ -107,7 +108,7 @@
  let automaticChoice='';
  $effect(()=>{
   if(!canAct||tableState.game?.phase!=='choose'||(tableState.players[tableState.game.active].tower??null)!==tower)return;
-  const forced=equivalentMove(tableState.game),key=`${room}:${tableState.revision}`;
+  const forced=automaticMove(tableState,events),key=`${room}:${tableState.revision}`;
   if(forced&&automaticChoice!==key){automaticChoice=key;void act(forced);}
  });
  async function sit(colour:number){
@@ -125,7 +126,7 @@
 </script>
 <svelte:head><title>Can’t Stop · Touch table</title></svelte:head>
 <div class="game-shell tabletop playing walkup" data-room={room} data-game-phase={tableState.phase} data-revision={tableState.revision} data-tower-status={towerStatus} data-moving={moving||turning} data-can-act={canAct} data-actor={active?.id??viewer} data-local-players={JSON.stringify(locals)} style:--edge-angle={`${-overlayPose.angle*180/Math.PI}deg`} style:--edge-x={`${50+overlayPose.x/(worldHeight*aspect)*100}%`} style:--edge-y={`${50+overlayPose.z/worldHeight*100}%`}>
- <DiceTowerBridge gameState={tableState} selected={tower} actors={tableState.players.filter(p=>!p.bot&&(p.id===viewer||locals.includes(p.id))).map(p=>p.id)} paused={!loaded||sending||moving||turning||menu} onIntent={act} onStatus={towerStatusChanged}/>
+ <DiceTowerBridge gameState={tableState} gameEvents={events} selected={tower} actors={tableState.players.filter(p=>!p.bot&&(p.id===viewer||locals.includes(p.id))).map(p=>p.id)} paused={!loaded||sending||moving||turning||menu} onIntent={act} onStatus={towerStatusChanged}/>
  <main class="play-surface"><TableView {frame} tabletop walkup {gathering} {pickingSeat} onPickSeat={seat=>pickingSeat=seat} onColour={sit} onBegin={actor=>act({type:'begin',seed:randomId()},actor)} seats={places} tabletopPose={pose} tabletopTurning={turning} {choosingSeat} onSeatPlayer={i=>{if(!gathering)choosingSeat=i;}} onSeat={takeSeat} onMenu={openMenu} players={tableState.players} {selected} {runnerColumn} {canAct} externalDice={!!active?.tower} directSelection {decisionReady} choiceState={board??empty} onPair={pair} onDestination={destination} onRoll={()=>{if(canAct&&decisionReady)void act({type:'roll'});}} onStop={()=>{if(canAct&&decisionReady)void act({type:'stop'});}}/>
  {#if tableState.phase==='finished'}<button class="walkup-rematch" onclick={()=>{menuPose={...pose};fresh();}}>New game</button>{/if}</main>
  {#if error}<div class="game-error" role="alert"><span>{error}</span><button onclick={()=>repo?.retry().catch(e=>error=e.message)}>Retry</button><button aria-label="Dismiss message" onclick={()=>error=''}>×</button></div>{/if}
