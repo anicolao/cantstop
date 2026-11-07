@@ -104,7 +104,13 @@
   catch(e){error=(e as Error).message;return false;}
   finally{sending=false;}
  }
- $effect(()=>{if(canAct&&tableState.game?.phase==='choose'&&(tableState.players[tableState.game.active].tower??null)===tower){const forced=equivalentMove(tableState.game);if(forced)void send(forced);}});
+ // An acknowledgement can arrive before the updated watch snapshot. Submit once per revision.
+ let automaticChoice='';
+ $effect(()=>{
+  if(!canAct||tableState.game?.phase!=='choose'||(tableState.players[tableState.game.active].tower??null)!==tower)return;
+  const forced=equivalentMove(tableState.game),key=`${room}:${tableState.revision}`;
+  if(forced&&automaticChoice!==key){automaticChoice=key;void send(forced);}
+ });
  function selectPair(pairing:number){
   if(!canAct)return;
   if(!directSelection){selected=pairing;runnerColumn=undefined;return;}

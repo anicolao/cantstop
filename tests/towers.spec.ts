@@ -30,12 +30,12 @@ test('tower input on the web resets dice, auto-selects equivalent moves, correct
   let state=replay(await readEvents(request,room));expect(state.game!.phase).toBe('ready');expect(state.game!.rollIndex).toBe(0);expect(state.towerEvents).toHaveLength(0);
   await expect(host.locator('.game-shell')).toHaveAttribute('data-tower-status',/Ready/,{timeout:30000});
   await publish(request,id,'first','throw-1',[3,1,3,3]);
-  await expect.poll(async()=>replay(await readEvents(request,room)).game!.runners,{timeout:90000}).toEqual({4:1,6:1});await settled(host);
+  await expect.poll(async()=>replay(await readEvents(request,room)).game!.runners,{timeout:90000}).toEqual({4:1,6:1});await settled(host);await expect(host.locator('.game-error')).toHaveCount(0);
   await expect(host.getByRole('button',{name:'Roll in tower',exact:true})).toBeDisabled();
   await publish(request,id,'corrected','throw-1',[2,2,2,2],'recognitionChanged');
-  await expect.poll(async()=>replay(await readEvents(request,room)).game!.runners,{timeout:30000}).toEqual({4:2});await settled(host);
+  await expect.poll(async()=>replay(await readEvents(request,room)).game!.runners,{timeout:30000}).toEqual({4:2});await settled(host);await expect(host.locator('.game-error')).toHaveCount(0);
   await publish(request,id,'next','throw-2',[2,2,2,2]);
-  await expect.poll(async()=>replay(await readEvents(request,room)).game!.runners,{timeout:30000}).toEqual({4:4});await settled(host);
+  await expect.poll(async()=>replay(await readEvents(request,room)).game!.runners,{timeout:30000}).toEqual({4:4});await settled(host);await expect(host.locator('.game-error')).toHaveCount(0);
   const log=await readEvents(request,room);state=replay(log);expect(state.turnRolls).toBe(2);expect(log.filter(e=>e.intent.type==='tower-roll')).toHaveLength(3);expect(log.filter(e=>e.intent.type==='roll')).toHaveLength(0);await host.screenshot({path:'artifacts/tower-web.png'});
   await host.reload();await expect(host.locator('.game-shell')).toHaveAttribute('data-revision',String(log.length),{timeout:90000});await settled(host);expect(await readEvents(request,room)).toEqual(log);
   await clickMesh(host,'STOP & SAVE');await expect.poll(async()=>replay(await readEvents(request,room)).game!.active,{timeout:30000}).toBe(1);await settled(host);
@@ -59,6 +59,6 @@ test('tabletop tower settings apply to local humans and physical turns stay unde
   await tapMesh(page,'STOP & SAVE');await settled(page);const initial=replay(await readEvents(request,room));expect(initial.game!.active).toBe(1);expect(initial.game!.phase).toBe('ready');
   await publish(request,id,'second','second',[3,1,3,3]);await expect.poll(async()=>replay(await readEvents(request,room)).game!.phase,{timeout:30000}).toBe('decide');await settled(page);
   const log=await readEvents(request,room),players=replay(log).players,rolls=log.filter(e=>e.intent.type==='tower-roll');expect(rolls.map(e=>e.actor)).toEqual(players.map(p=>p.id));expect(new Set(players.map(p=>p.id)).size).toBe(2);
-  await expect(page.getByRole('button',{name:'Roll in tower',exact:true})).toBeDisabled();await page.screenshot({path:'artifacts/tabletop-tower.png'});
+  await expect(page.locator('.game-error')).toHaveCount(0);await expect(page.getByRole('button',{name:'Roll in tower',exact:true})).toBeDisabled();await page.screenshot({path:'artifacts/tabletop-tower.png'});
  }catch(error){console.log('tabletop failure',await page.locator('.game-shell').evaluate(el=>({data:{...(el as HTMLElement).dataset},alerts:el.querySelector('[role=alert]')?.textContent})));throw error;}finally{await context.close();}
 });
