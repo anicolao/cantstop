@@ -1,7 +1,22 @@
-import {test,expect} from '@playwright/test';
-import {readEvents,settled,clickMesh,clickFirstPairing} from './helpers/game';
-import {replay} from '../src/game/engine';
-test.setTimeout(240000);
+import {test,expect,type APIRequestContext} from '@playwright/test';
+import {readEvents,settled,clickMesh,clickFirstPairing,nextGameSeed} from './helpers/game';
+import {COMPANION_GAMES} from './helpers/companion-games';
+import {replay,type Player} from '../src/game/engine';
+// Native software-rendered transitions can each take 10–20 seconds in CI.
+test.setTimeout(600000);
+async function companionTurn(request:APIRequestContext,room:string,before:number,players:Player[],game:typeof COMPANION_GAMES[keyof typeof COMPANION_GAMES]){
+ for(const [i,action] of game.actions.entries()){
+  const sequence=before+i+1;
+  // A progress deadline catches a stuck bot without imposing one deadline on
+  // an entire variable-length turn. Keep every animation fully rendered.
+  await expect.poll(async()=>(await readEvents(request,room)).length,{timeout:30000,message:`Companion action ${sequence}`}).toBeGreaterThanOrEqual(sequence);
+  const event=(await readEvents(request,room))[sequence-1];
+  expect(event.actor).toBe(players[action.seat].id);expect(event.intent).toEqual(action.intent);
+ }
+ const log=await readEvents(request,room);
+ expect(log).toHaveLength(before+game.actions.length);expect(replay(log).game!.active).toBe(game.nextSeat);
+ return log;
+}
 
 test('companion levels on the web persist and each bot takes its own turn',async({browser,request})=>{
  const context=await browser.newContext({viewport:{width:1180,height:820}}),page=await context.newPage(),errors:string[]=[];
@@ -17,10 +32,10 @@ test('companion levels on the web persist and each bot takes its own turn',async
   expect(replay(initial).players.map(p=>p.level)).toEqual([undefined,'easy','yolo','hard']);
   await page.reload();await expect(page.locator('.seat-list li')).toHaveCount(4);
   for(const text of ['Easy companion','Yolo companion','Hard companion'])await expect(page.locator('.seat-list')).toContainText(text);
-  await page.getByRole('button',{name:'Start game',exact:true}).click();await settled(page);
+  await nextGameSeed(page,COMPANION_GAMES.web.seed);await page.getByRole('button',{name:'Start game',exact:true}).click();await settled(page);
+  expect((await readEvents(request,room))[initial.length].intent).toEqual({type:'begin',seed:COMPANION_GAMES.web.seed});
   await clickFirstPairing(page);await settled(page);await clickMesh(page,'STOP & SAVE');
-  await expect.poll(async()=>{const log=await readEvents(request,room),s=replay(log);return log.length>initial.length+3&&s.game!.active===0;},{timeout:90000}).toBe(true);
-  const log=await readEvents(request,room),s=replay(log);
+  const log=await companionTurn(request,room,initial.length+3,replay(initial).players,COMPANION_GAMES.web),s=replay(log);
   for(const bot of s.players.filter(p=>p.bot))expect(log.some(e=>e.actor===bot.id&&['advance','roll','stop'].includes(e.intent.type))).toBe(true);
   expect(log.slice(initial.length+1).every(e=>!['dice','positions','claims','winner','turnRolls'].some(key=>key in e.intent))).toBe(true);
   await settled(page);await page.screenshot({path:'artifacts/companion-levels-web.png'});expect(errors).toEqual([]);
@@ -41,9 +56,10 @@ test('tabletop companions share colours with real local humans and resume after 
   const room=(await page.locator('.game-shell').getAttribute('data-room'))!,initial=await readEvents(request,room),players=replay(initial).players;
   expect(players.map(p=>p.bot)).toEqual([false,true,false]);expect(new Set(players.map(p=>p.id)).size).toBe(3);
   expect(initial.map(e=>e.intent.type)).toEqual(['sit','invite-bot','sit']);expect(players[1].level).toBe('hard');expect(players[1].colour).toBe(1);expect(players[1].seat).toBeUndefined();
-  await clickMesh(page,'START GAME');await settled(page);
+  await nextGameSeed(page,COMPANION_GAMES.tabletop.seed);await clickMesh(page,'START GAME');await settled(page);
+  expect((await readEvents(request,room))[initial.length].intent).toEqual({type:'begin',seed:COMPANION_GAMES.tabletop.seed});
   await clickFirstPairing(page);await settled(page);await clickMesh(page,'STOP & SAVE');
-  await expect.poll(async()=>{const log=await readEvents(request,room);return replay(log).game!.active===2&&log.some(e=>e.actor===players[1].id);},{timeout:90000}).toBe(true);
+  await companionTurn(request,room,initial.length+3,players,COMPANION_GAMES.tabletop);
   await settled(page);await expect(page.locator('.game-shell')).toHaveAttribute('data-can-act','true');
   expect(JSON.parse((await page.locator('.table-view').getAttribute('data-tabletop-pose'))!).angle).toBeCloseTo(Math.PI/2);
   const log=await readEvents(request,room);await page.reload();await expect(page.locator('.game-shell')).toHaveAttribute('data-revision',String(log.length),{timeout:90000});await settled(page);
