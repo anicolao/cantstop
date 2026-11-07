@@ -1,24 +1,26 @@
-import {apply as advanceGame,pairings,type State as BoardState,type Intent as BoardIntent} from '../lib/model/game';
+import {apply as advanceGame,pairings,receiveDice,type State as BoardState,type Intent as BoardIntent} from '../lib/model/game';
 import {chooseCompanion,isBotLevel,type BotLevel} from './companion';
 import {COLOUR_NAMES,SEAT_IDS,type SeatId} from './seating';
 export const VERSION=2 as const;
 export type Protocol=1|2|3;
-export type Intent={type:'create';name:string}|{type:'join';name:string}|{type:'invite-bot';id:string;name:string;level?:BotLevel;colour?:number}|{type:'begin';seed:string}|{type:'sit';seat:SeatId;colour:number}|BoardIntent;
-export type Player={id:string;name:string;bot:boolean;level?:BotLevel;colour?:number;seat?:SeatId};
-export type State={protocol:Protocol;turnRolls:number;choice:{before:BoardState;pairing:number;column?:number}|null;revision:number;host:string;players:Player[];phase:'gathering'|'playing'|'finished';seed:string;game:BoardState|null;winner:string|null};
+export type Intent={type:'create';name:string}|{type:'join';name:string}|{type:'invite-bot';id:string;name:string;level?:BotLevel;colour?:number}|{type:'begin';seed:string}|{type:'sit';seat:SeatId;colour:number}|{type:'dice-source';tower:string|null}|{type:'tower-roll';tower:string;eventId:string;rollId:string;dice:number[]}|BoardIntent;
+export type Player={id:string;name:string;bot:boolean;tower?:string;level?:BotLevel;colour?:number;seat?:SeatId};
+export type State={protocol:Protocol;turnRolls:number;turnId:number;towerRoll:{tower:string;rollId:string;eventId:string;actor:string;before:BoardState}|null;towerEvents:string[];towerRolls:string[];choice:{before:BoardState;pairing:number;column?:number}|null;revision:number;host:string;players:Player[];phase:'gathering'|'playing'|'finished';seed:string;game:BoardState|null;winner:string|null};
 export type Event={version:Protocol;sequence:number;id:string;actor:string;intent:Intent};
 const requireChoice=(ok:unknown,message:string)=>{if(!ok)throw new Error(message);};
-export const initialState=(protocol:Protocol=VERSION):State=>({protocol,turnRolls:0,choice:null,revision:0,host:'',players:[],phase:'gathering',seed:'',game:null,winner:null});
+export const initialState=(protocol:Protocol=VERSION):State=>({protocol,turnRolls:0,turnId:0,towerRoll:null,towerEvents:[],towerRolls:[],choice:null,revision:0,host:'',players:[],phase:'gathering',seed:'',game:null,winner:null});
 /** Versioned FNV-1a seed derivation; v1 dice use the prototype's frozen PRNG. */
 export function seedNumber(seed:string){let h=2166136261;for(let i=0;i<seed.length;i++){h^=seed.charCodeAt(i);h=Math.imul(h,16777619);}return h>>>0;}
 export function parseIntent(value:unknown):Intent{
  requireChoice(!!value&&typeof value==='object'&&!Array.isArray(value),'Choose an action.');
  const v=value as Record<string,unknown>;
- const fields:Record<string,string[]>={sit:['seat','colour'],create:['name'],join:['name'],'invite-bot':['id','name'],begin:['seed'],roll:[],advance:['pairing'],stop:[]};
+ const fields:Record<string,string[]>={'dice-source':['tower'],'tower-roll':['tower','eventId','rollId','dice'],sit:['seat','colour'],create:['name'],join:['name'],'invite-bot':['id','name'],begin:['seed'],roll:[],advance:['pairing'],stop:[]};
  requireChoice(typeof v.type==='string'&&Object.hasOwn(fields,v.type),'Choose an action.');
  const expected=['type',...fields[v.type as string],...(v.type==='invite-bot'?['level','colour'].filter(k=>Object.hasOwn(v,k)):[]),...(v.type==='advance'&&Object.hasOwn(v,'column')?['column']:[])];
  requireChoice(Object.keys(v).length===expected.length&&expected.every(k=>Object.hasOwn(v,k)),'That action has unexpected details.');
  if(v.type==='sit')requireChoice(SEAT_IDS.includes(v.seat as SeatId)&&Number.isInteger(v.colour)&&Number(v.colour)>=0&&Number(v.colour)<4,'Choose a place and colour.');
+ if('tower'in v)requireChoice(v.type==='dice-source'&&v.tower===null||typeof v.tower==='string'&&/^[\w-]{1,128}$/.test(v.tower),'Choose a dice tower.');
+ if(v.type==='tower-roll')requireChoice(['eventId','rollId'].every(k=>typeof v[k]==='string'&&/^[\w-]{1,64}$/.test(v[k] as string))&&Array.isArray(v.dice)&&v.dice.length===4&&v.dice.every(n=>Number.isInteger(n)&&n>=1&&n<=6),'The tower needs four d6 dice and valid source IDs.');
  if('level'in v)requireChoice(isBotLevel(v.level),'Choose Easy, Yolo, Standard, or Hard.');
  if(v.type==='invite-bot'&&'colour'in v)requireChoice(Number.isInteger(v.colour)&&Number(v.colour)>=0&&Number(v.colour)<4,'Choose an available colour.');
  if('name'in v)requireChoice(typeof v.name==='string'&&v.name.trim().length>0&&v.name.trim().length<=24,'Choose a name of 1–24 characters.');
@@ -28,13 +30,30 @@ export function parseIntent(value:unknown):Intent{
  if('column'in v)requireChoice(Number.isInteger(v.column)&&Number(v.column)>=2&&Number(v.column)<=12,'Choose a runner destination.');
  return structuredClone(v) as Intent;
 }
-export type BoardChange={before:BoardState;after:BoardState;action:BoardIntent['type'];replacement:boolean};
+export type BoardChange={before:BoardState;after:BoardState;action:BoardIntent['type']|'tower-roll';replacement:boolean};
 /** Derived board steps for presentation; never persisted as game events. */
 export function evolve(state:State,actor:string,input:Intent):{state:State;changes:BoardChange[]}{
  requireChoice(typeof actor==='string'&&/^[\w-]{1,128}$/.test(actor),'Take your own seat.');
  const intent=parseIntent(input),next=structuredClone(state),seat=state.players.findIndex(p=>p.id===actor),changes:BoardChange[]=[];
- const change=(before:BoardState,after:BoardState,action:BoardIntent['type'],replacement=false)=>{next.game=after;changes.push({before,after,action,replacement});};
- if(intent.type==='sit'){
+ const change=(before:BoardState,after:BoardState,action:BoardIntent['type']|'tower-roll',replacement=false)=>{next.game=after;changes.push({before,after,action,replacement});};
+ if(intent.type==='dice-source'){
+  requireChoice(state.protocol>=2&&seat>=0&&!state.players[seat].bot,'Choose dice for your own seat in a current game.');
+  if(intent.tower===null)delete next.players[seat].tower;else next.players[seat].tower=intent.tower;
+  if(state.phase==='playing'&&state.game?.active===seat&&intent.tower&&state.game.phase==='choose'){
+   next.game!.phase='ready';next.choice=null;next.towerRoll=null;
+  }
+ }else if(intent.type==='tower-roll'){
+  requireChoice(state.protocol>=2&&state.phase==='playing'&&state.game&&seat===state.game.active&&state.players[seat].tower===intent.tower,'Wait for your selected tower and your turn.');
+  const eventKey=`${intent.tower}/${intent.eventId}`,rollKey=`${intent.tower}/${intent.rollId}`;
+  requireChoice(!state.towerEvents.includes(eventKey),'This tower event has already been accepted.');
+  const correction=state.towerRoll?.tower===intent.tower&&state.towerRoll.rollId===intent.rollId&&state.towerRoll.actor===actor;
+  requireChoice(correction||!state.towerRolls.includes(rollKey),'This physical roll has already ended.');
+  const before=state.game!,base=correction?state.towerRoll!.before:before,after=receiveDice(base,intent.dice);
+  change(before,after,'tower-roll',correction);next.choice=null;next.towerEvents.push(eventKey);
+  if(!correction){next.towerRolls.push(rollKey);next.turnRolls++;}
+  next.towerRoll={tower:intent.tower,eventId:intent.eventId,rollId:intent.rollId,actor,before:structuredClone(base)};
+  if(after.lastOutcome==='bust'){after.active=(before.active+1)%state.players.length;next.turnRolls=0;next.turnId=state.revision+1;next.towerRoll=null;}
+ }else if(intent.type==='sit'){
   requireChoice((state.protocol===3||state.revision===0)&&state.phase==='gathering'&&seat<0&&state.players.length<4,'Choose an empty place.');
   requireChoice(!state.players.some(p=>p.colour===intent.colour||p.seat===intent.seat),'That place or colour is taken.');
   next.protocol=3;if(!state.revision)next.host=actor;
@@ -52,28 +71,30 @@ export function evolve(state:State,actor:string,input:Intent):{state:State;chang
   next.players.push({id:intent.id,name:intent.name.trim(),bot:true,...(intent.level===undefined?{}:{level:intent.level}),...(intent.colour===undefined?{}:{colour:intent.colour})});
  }else if(intent.type==='begin'){
   requireChoice((state.protocol===3?seat>=0:actor===state.host)&&state.players.length>=2&&['gathering','finished'].includes(state.phase),'Only the host can start once at least two players are seated.');
-  next.turnRolls=0;next.seed=intent.seed;next.winner=null;next.phase='playing';next.choice=null;
+  next.turnRolls=0;next.turnId=state.revision+1;next.towerRoll=null;next.seed=intent.seed;next.winner=null;next.phase='playing';next.choice=null;
   next.game={version:1,seed:seedNumber(intent.seed),rollIndex:0,active:0,phase:'ready',saved:[{},{},{},{}],runners:{},claims:[[],[],[],[]],dice:[1,1,1,1],lastOutcome:'none'};
  }else{
   requireChoice(state.phase==='playing'&&state.game&&seat===state.game.active,'Wait for your turn.');
   const before=state.game!;
+  requireChoice(intent.type!=='roll'||!state.players[seat].tower,'Roll in your selected dice tower.');
   const replacement=state.protocol>=2&&intent.type==='advance'&&before.phase==='decide';
   requireChoice(!replacement||state.choice,'Roll before choosing.');
   const base=replacement?state.choice!.before:before;
   change(before,advanceGame(base,intent),intent.type,replacement);
   if(intent.type==='roll')next.turnRolls++;
-  if(intent.type==='stop'||next.game!.lastOutcome==='bust')next.turnRolls=0;
+  if(intent.type==='stop'||next.game!.lastOutcome==='bust'){next.turnRolls=0;next.turnId=state.revision+1;next.towerRoll=null;}
+  if(intent.type==='roll')next.towerRoll=null;
   next.choice=state.protocol>=2&&intent.type==='advance'?{before:structuredClone(base),pairing:intent.pairing,...(intent.column===undefined?{}:{column:intent.column})}:null;
   if((intent.type==='stop'||next.game!.lastOutcome==='bust')&&next.game!.phase!=='finished')next.game!.active=(before.active+1)%state.players.length;
   if(next.game!.phase==='finished'){next.phase='finished';next.winner=state.players[before.active].id;}
  }
  // A turn opening offers no choice. Its seeded rolls (including consecutive
  // opening busts) are derived from begin/stop/roll, never appended as actions.
- if(state.protocol>=2&&next.phase==='playing')while(next.game?.phase==='ready'){
+ if(state.protocol>=2&&next.phase==='playing')while(next.game?.phase==='ready'&&!next.players[next.game.active]?.tower){
   const before=next.game,after=advanceGame(before,{type:'roll'});next.turnRolls++;
   if(after.lastOutcome==='bust')next.turnRolls=0;
   if(after.lastOutcome==='bust')after.active=(before.active+1)%next.players.length;
-  change(before,after,'roll');next.choice=null;
+  change(before,after,'roll');next.choice=null;next.towerRoll=null;
  }
  next.revision++;return {state:next,changes};
 }

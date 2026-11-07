@@ -93,14 +93,14 @@ share the invitation, and add optional companions before starting. A companion
 submits the same legal choices as a human and is run by the host's open tab.
 
 `bun run dev` starts Vite on 5199. Without a real Firebase configuration it also
-starts isolated anonymous Auth and Firestore emulators (Java 21 required), using
+starts isolated anonymous Auth, Firestore, and DiceTower input emulators (Java 21 required), using
 only the guarded `demo-cantstop-local` project. `bun run dev:emulators` forces
 this local mode. With the configuration in `.env.example`, the game connects
 directly to anonymous Firebase Auth and Firestore. There is no application server
 or alternate persistence backend.
 
 `bun run test:firebase` uses an isolated rules-test emulator, and browser tests
-start their own Auth/Firestore emulators and Vite on 5399. Neither touches a
+start their own Auth/Firestore/DiceTower emulators and Vite on 5399. Neither touches a
 production project or the running development stack.
 
 Every same-repository PR automatically publishes a playable GitHub Pages preview
@@ -168,3 +168,40 @@ outcomes replayable. Existing desktop/phone games retain protocols 1 and 2.
 
 See [the walk-up journey and native captures](docs/TABLETOP.md). The animation lab
 also includes a Tabletop preview for scrubbing the shared handoff.
+
+## Physical DiceTower input
+
+In web **Settings**, or the tabletop **Table menu**, choose an active sharing
+tower under **Dice source**. Start sharing in DiceTower first. The choice stays
+on this device and applies to its seated humans; companions and remote players
+keep their own dice sources. Each controlled human records their selected source
+in the game so other screens can show that they are waiting for a physical roll.
+Choose **Digital dice** to return to seeded rolls. Protocol-1 imports remain unchanged.
+
+A selected tower replaces digital rolls, including the opening throw. Roll four
+d6 dice in the tower; accepted readings reset the displayed dice immediately.
+Equivalent legal moves are chosen automatically in both digital and tower games.
+Distinct legal moves still require a pairing or last-pawn choice. Roll again
+physically to continue, or choose **Stop & save**. A recognition correction
+replaces only the current physical throw and its provisional pairing. Once a
+throw is banked, busted, or superseded, later corrections cannot rewrite it.
+New throws with identical values still count as new throws.
+
+Only fresh observations received after connecting are accepted. Old history,
+duplicate source events, non-four-die readings, and rolls during another
+player's turn are ignored. A disconnected/offline tower leaves the game waiting;
+the game never silently rolls digitally. For recovery, reconnect or select
+Digital dice. DiceTower recognition is experimental; inspect the four faces
+before banking. Accepted four-die values and source IDs are recorded as external
+inputs in Firestore, so downloads and other clients replay without the tower.
+Images, detection boxes, confidence values, and heartbeat timestamps are not
+part of the game log.
+
+The observer uses the public client configuration and schema from the sibling
+`../dicetower` project (`docs/FIREBASE.md`). It reads that project's anonymous-Auth
+Realtime Database stream and never writes to it; Firestore remains the only
+game persistence backend. `src/game/towers/client-config.json` copies its public
+Firebase configuration. `firebase/dicetower.database.rules.json` copies its
+source rules solely for isolated emulator tests. Local development uses
+`demo-dicetower-local` on port 9012, browser tests use `demo-dicetower-e2e` on 9013;
+neither accesses production towers. No DiceTower deployment is required.

@@ -5,7 +5,7 @@ import {doc,getDoc,getDocs,collection,writeBatch,setDoc,deleteDoc,type Firestore
 import {appendFirestore,tableRef,watchFirestore} from '../../src/game/firestore';
 import {apply,replay,initialState,type Event,type Intent} from '../../src/game/engine';
 let env:RulesTestEnvironment;
-beforeAll(async()=>{if(!process.env.FIRESTORE_EMULATOR_HOST)throw new Error('Run with the Firestore emulator.');env=await initializeTestEnvironment({projectId:'demo-cantstop',firestore:{host:'127.0.0.1',port:8211,rules:readFileSync('firestore.rules','utf8')}});});
+beforeAll(async()=>{if(!process.env.FIRESTORE_EMULATOR_HOST)throw new Error('Run with the Firestore emulator.');env=await initializeTestEnvironment({projectId:'demo-cantstop',firestore:{host:'127.0.0.1',port:8211,rules:readFileSync('firestore.rules','utf8')}});},30000);
 afterAll(async()=>{await env?.cleanup();});
 const db=(uid:string)=>env.authenticatedContext(uid).firestore() as unknown as Firestore;
 async function until(check:()=>boolean){const end=Date.now()+8000;while(!check()){if(Date.now()>end)throw new Error('Observer did not receive the action.');await Bun.sleep(10);}}
@@ -87,5 +87,34 @@ test('Firestore rules reject unsupported bot levels and bot invitations with out
   const batch=writeBatch(host);batch.set(root,{owner:'level-rules',members:['level-rules','bot-a'],bots:['bot-a'],revision:2});
   batch.set(doc(root,'events','2'),{version:2,id:'forged-level',sequence:2,actor:'level-rules',intent:{type:'invite-bot',id:'bot-a',name:'Cal',...extra}});
   batch.set(doc(root,'commands','forged-level'),{sequence:2});await assertFails(batch.commit());
+ }
+});
+
+test('physical roll inputs are attributable, replayable, and retry-safe in Firestore',async()=>{
+ const host=db('tower-host'),guest=db('tower-guest'),scope='tower-input',room='TOWER1';let state=initialState();const log:Event[]=[];
+ async function act(client:Firestore,uid:string,intent:Intent,id=`tower-${log.length}`){
+  await appendFirestore(client,scope,room,uid,{id,actor:uid,expectedRevision:log.length,intent},log);state=apply(state,uid,intent);log.push({version:state.protocol,sequence:log.length+1,id,actor:uid,intent});
+ }
+ await act(host,'tower-host',{type:'create',name:'Host'});await act(guest,'tower-guest',{type:'join',name:'Guest'});await act(host,'tower-host',{type:'dice-source',tower:'camera-a'});await act(host,'tower-host',{type:'begin',seed:'physical-cloud'});
+ expect(state.game!.phase).toBe('ready');expect(state.game!.rollIndex).toBe(0);
+ const intent:Intent={type:'tower-roll',tower:'camera-a',eventId:'capture-a',rollId:'throw-a',dice:[3,1,3,3]},revision=log.length;
+ await expect(appendFirestore(guest,scope,room,'tower-guest',{id:'stolen',actor:'tower-host',expectedRevision:revision,intent},log)).rejects.toThrow('Take your own seat');
+ await act(host,'tower-host',intent,'capture-a');await appendFirestore(host,scope,room,'tower-host',{id:'capture-a',actor:'tower-host',expectedRevision:revision,intent});
+ await expect(appendFirestore(host,scope,room,'tower-host',{id:'capture-a',actor:'tower-host',expectedRevision:revision,intent:{...intent,dice:[1,1,1,1]}})).rejects.toThrow('already been used');
+ await act(host,'tower-host',{type:'advance',pairing:0});await act(host,'tower-host',{...intent,eventId:'correction-a',dice:[2,2,2,2]});expect(state.game!.runners).toEqual({});
+ await act(host,'tower-host',{type:'advance',pairing:0});await act(host,'tower-host',{type:'stop'});
+ const stored=(await getDocs(collection(tableRef(host,scope,room),'events'))).docs.map(d=>d.data() as Event).sort((a,b)=>a.sequence-b.sequence);
+ expect(stored).toEqual(log);expect(replay(stored)).toEqual(state);expect(state.game!.saved[0]).toEqual({4:2});expect(state.game!.active).toBe(1);
+});
+
+test('rules reject malformed physical observations and computed state alongside raw dice',async()=>{
+ const host=db('tower-rules'),root=tableRef(host,'tower-rules','INPUT1');await appendFirestore(host,'tower-rules','INPUT1','tower-rules',{id:'create',actor:'tower-rules',expectedRevision:0,intent:{type:'create',name:'Host'}});
+ for(const intent of [
+  {type:'tower-roll',tower:'camera',rollId:'throw',eventId:'event',dice:[1,2,3]},
+  {type:'tower-roll',tower:'camera',rollId:'throw',eventId:'event',dice:[1,2,3,7]},
+  {type:'tower-roll',tower:'camera',rollId:'throw',eventId:'event',dice:[1,2,3,4],claims:[4]},
+  {type:'dice-source',tower:123}
+ ]){
+  const batch=writeBatch(host);batch.set(root,{owner:'tower-rules',members:['tower-rules'],bots:[],revision:2});batch.set(doc(root,'events','2'),{version:2,id:'malformed',sequence:2,actor:'tower-rules',intent});batch.set(doc(root,'commands','malformed'),{sequence:2});await assertFails(batch.commit());
  }
 });

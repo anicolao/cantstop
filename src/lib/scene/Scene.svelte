@@ -17,7 +17,7 @@
  import TabletopDock from './TabletopDock.svelte';
  import {TABLETOP_SPAN,type SeatId,type SeatPose} from '../presentation/tabletop';
  import Camera from './Camera.svelte';import Board from './Board.svelte';import Token from './Token.svelte';import Die from './Die.svelte';import Plaque from './Plaque.svelte';import Inscription from './Inscription.svelte';
- let {frame,walkup=false,gathering=false,pickingSeat=null,onPickSeat=()=>{},onColour=()=>{},onBegin=()=>{},tabletop=false,seats={},tabletopPose={x:-9.2,z:9,angle:0},choosingSeat=null,onSeatPlayer=()=>{},onSeat=()=>{},onMenu=()=>{},directSelection=false,decisionReady=true,choiceState,canAct=true,phone=false,selected=2,runnerColumn,focus='table',preset='table',lowAngle=60,players=PLAYERS,orbit=false,onPair=()=>{},onDestination=()=>{},onMove=()=>{},onRoll=()=>{},onStop=()=>{},onReady=()=>{},onTargets=()=>{},onFraming=()=>{}}:{frame:Frame;walkup?:boolean;gathering?:boolean;pickingSeat?:SeatId|null;onPickSeat?:(seat:SeatId|null)=>void;onColour?:(colour:number)=>void;onBegin?:(actor:string)=>void;tabletop?:boolean;seats?:Record<string,SeatId>;tabletopPose?:SeatPose;choosingSeat?:number|null;onSeatPlayer?:(index:number)=>void;onSeat?:(seat:SeatId)=>void;onMenu?:(index?:number)=>void;directSelection?:boolean;decisionReady?:boolean;choiceState?:BoardState;canAct?:boolean;phone?:boolean;selected?:number;runnerColumn?:number;focus?:string;preset?:string;lowAngle?:number;players?:{id?:string;name:string;colour?:number;bot?:boolean;level?:import('../../game/companion').BotLevel}[];orbit?:boolean;onPair?:(n:number)=>void;onDestination?:(n:number)=>void;onMove?:()=>void;onRoll?:()=>void;onStop?:()=>void;onReady?:()=>void;onFraming?:(framing:BoardFraming)=>void;onTargets?:(targets:{name:string;x:number;y:number}[])=>void}=$props();
+ let {frame,walkup=false,gathering=false,pickingSeat=null,onPickSeat=()=>{},onColour=()=>{},onBegin=()=>{},tabletop=false,seats={},tabletopPose={x:-9.2,z:9,angle:0},choosingSeat=null,onSeatPlayer=()=>{},onSeat=()=>{},onMenu=()=>{},externalDice=false,directSelection=false,decisionReady=true,choiceState,canAct=true,phone=false,selected=2,runnerColumn,focus='table',preset='table',lowAngle=60,players=PLAYERS,orbit=false,onPair=()=>{},onDestination=()=>{},onMove=()=>{},onRoll=()=>{},onStop=()=>{},onReady=()=>{},onTargets=()=>{},onFraming=()=>{}}:{frame:Frame;walkup?:boolean;gathering?:boolean;pickingSeat?:SeatId|null;onPickSeat?:(seat:SeatId|null)=>void;onColour?:(colour:number)=>void;onBegin?:(actor:string)=>void;tabletop?:boolean;seats?:Record<string,SeatId>;tabletopPose?:SeatPose;choosingSeat?:number|null;onSeatPlayer?:(index:number)=>void;onSeat?:(seat:SeatId)=>void;onMenu?:(index?:number)=>void;externalDice?:boolean;directSelection?:boolean;decisionReady?:boolean;choiceState?:BoardState;canAct?:boolean;phone?:boolean;selected?:number;runnerColumn?:number;focus?:string;preset?:string;lowAngle?:number;players?:{id?:string;name:string;colour?:number;bot?:boolean;level?:import('../../game/companion').BotLevel}[];orbit?:boolean;onPair?:(n:number)=>void;onDestination?:(n:number)=>void;onMove?:()=>void;onRoll?:()=>void;onStop?:()=>void;onReady?:()=>void;onFraming?:(framing:BoardFraming)=>void;onTargets?:(targets:{name:string;x:number;y:number}[])=>void}=$props();
  const {scene,renderer,invalidate,camera,size}=useThrelte();interactivity();
  let lib=$state.raw<Library>();let ready=$state(false);
  const table=slab(outline(28,25,.9),.25,.22),mat=slab(outline(24,21,.65),.06,.09);
@@ -141,17 +141,17 @@
    <Plaque {lib} text={`THREE SUMMITS. ${players[frame.state.active]?.name.toUpperCase()} WINS.`} position={[landscape?5.5:phone?0:4,.04,landscape?2:phone?8.15:6.7]} width={phone?7:6.3} depth={1.05} selected/>
   {:else if !directSelection}
    <Plaque {lib} text={frame.state.phase==='ready'?'ROLL DICE':'STOP & SAVE'} position={[landscape?5.5:phone?0:4.0,.04,landscape?1.25:phone?8.05:6.25]} width={phone?7.05:5.45} depth={1.0} selected onactivate={frame.state.phase==='ready'?onRoll:onStop}/>
-   {#if frame.state.phase!=='ready'}<Plaque {lib} text="ROLL AGAIN" position={[landscape?5.5:phone?0:4.0,.04,landscape?2.8:phone?9.15:7.85]} width={phone?7.05:5.45} depth={.95} onactivate={onRoll}/>{/if}
+   {#if frame.state.phase!=='ready'}<Plaque {lib} text={externalDice?"ROLL IN TOWER":"ROLL AGAIN"} position={[landscape?5.5:phone?0:4.0,.04,landscape?2.8:phone?9.15:7.85]} width={phone?7.05:5.45} depth={.95} onactivate={onRoll}/>{/if}
    <Inscription text={riskText} position={[landscape?5.5:phone?0:-4.0,.05,landscape?4.0:phone?9.95:9.5]} width={4.8} height={.40}/>
   {/if}
   {#if directSelection&&frame.state.phase==='decide'}
    <T.Group position={[landscape?5.5:phone?0:4,.04,landscape?(ambiguous?2.9:1.85):phone?(ambiguous?9.5:8.95):(ambiguous?7.8:6.65)]}>
     <Plaque {lib} text="STOP & SAVE" position={[phone?-1.8:-1.45,0,0]} width={phone?3.45:2.75} depth={.95} selected disabled={!canAct||!decisionReady} onactivate={onStop}/>
-    <Plaque {lib} text="ROLL AGAIN" position={[phone?1.8:1.45,0,0]} width={phone?3.45:2.75} depth={.95} disabled={!canAct||!decisionReady} onactivate={onRoll}/>
+    <Plaque {lib} text={externalDice?"ROLL IN TOWER":"ROLL AGAIN"} position={[phone?1.8:1.45,0,0]} width={phone?3.45:2.75} depth={.95} disabled={!canAct||!decisionReady||externalDice} onactivate={onRoll}/>
    </T.Group>
   {/if}
  {/if}
- {#if tabletop&&focus==='table'}<TabletopDock {lib} {walkup} {gathering} {pickingSeat} {onPickSeat} {onColour} {onBegin} {frame} choiceState={choiceState??frame.state} players={players.map((p,i)=>({...p,id:p.id??String(i)}))} {seats} pose={tabletopPose} {selected} {runnerColumn} {canAct} {decisionReady} {directSelection} {choosingSeat} {onSeatPlayer} {onSeat} {onPair} {onDestination} {onMove} {onRoll} {onStop} {onMenu}/>{/if}
+ {#if tabletop&&focus==='table'}<TabletopDock {lib} {walkup} {gathering} {pickingSeat} {onPickSeat} {onColour} {onBegin} {frame} choiceState={choiceState??frame.state} players={players.map((p,i)=>({...p,id:p.id??String(i)}))} {seats} pose={tabletopPose} {selected} {runnerColumn} {canAct} {decisionReady} {externalDice} {directSelection} {choosingSeat} {onSeatPlayer} {onSeat} {onPair} {onDestination} {onMove} {onRoll} {onStop} {onMenu}/>{/if}
  {#if focus==='runner'||focus==='token'}
   <T.Mesh geometry={disc} rotation.x={-Math.PI/2} scale={[2.8,4,1]} material={lib.enamel} receiveShadow/>
   {#each samplePositions as x,i}
@@ -160,7 +160,7 @@
   {/each}
  {/if}
  {#if focus==='plaque'}
-  <Plaque {lib} text="ROLL AGAIN" position={[0,.2,-1.2]} width={5.5} depth={1.4} onactivate={onRoll}/>
+  <Plaque {lib} text={externalDice?"ROLL IN TOWER":"ROLL AGAIN"} position={[0,.2,-1.2]} width={5.5} depth={1.4} onactivate={onRoll}/>
   <Plaque {lib} text="STOP & SAVE" position={[0,.2,1.2]} width={5.5} depth={1.4} selected onactivate={onStop}/>
  {/if}
  {#if focus==='surface'}

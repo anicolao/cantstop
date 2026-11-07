@@ -23,6 +23,16 @@
     "ui": {
       "enabled": false
     },
-    "singleProjectMode": true
-  }
+    "singleProjectMode": false,
+    "database": {
+      "host": "127.0.0.1",
+      "port": 9012
+    }
+  },
+  "database": [
+    {
+      "instance": "demo-dicetower-local-default-rtdb",
+      "rules": "firebase/dicetower.database.rules.json"
+    }
+  ]
 }

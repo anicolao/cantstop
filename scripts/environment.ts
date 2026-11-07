@@ -10,5 +10,5 @@ export function javaEnv(){
 }
 export function emulatorEnv(kind:'local'|'e2e'){
  const project=`demo-cantstop-${kind}`;
- return {...javaEnv(),PUBLIC_BASE_PATH:'/',VITE_FIREBASE_API_KEY:'fake-api-key',VITE_FIREBASE_PROJECT_ID:project,VITE_FIREBASE_AUTH_DOMAIN:`${project}.firebaseapp.com`,VITE_FIREBASE_APP_ID:`${project}-app`,VITE_USE_FIREBASE_EMULATORS:'true',VITE_FIRESTORE_EMULATOR_PORT:kind==='local'?'8212':'8213',VITE_FIREBASE_AUTH_EMULATOR_PORT:kind==='local'?'9212':'9213',VITE_PREVIEW_ID:kind};
+ return {...javaEnv(),PUBLIC_BASE_PATH:'/',VITE_FIREBASE_API_KEY:'fake-api-key',VITE_FIREBASE_PROJECT_ID:project,VITE_FIREBASE_AUTH_DOMAIN:`${project}.firebaseapp.com`,VITE_FIREBASE_APP_ID:`${project}-app`,VITE_USE_FIREBASE_EMULATORS:'true',VITE_FIRESTORE_EMULATOR_PORT:kind==='local'?'8212':'8213',VITE_FIREBASE_AUTH_EMULATOR_PORT:kind==='local'?'9212':'9213',VITE_DICE_TOWER_EMULATOR_PORT:kind==='local'?'9012':'9013',VITE_PREVIEW_ID:kind};
 }

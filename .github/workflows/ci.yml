@@ -34,8 +34,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - {story: game, grep: 'four independent|a phone|a downloaded|companion levels on the web'}
-          - {story: tabletop, grep: 'four people share|tabletop lab handoff|tabletop companions'}
+          - {story: game, grep: 'four independent|a phone|a downloaded|companion levels on the web|tower input on the web'}
+          - {story: tabletop, grep: 'four people share|tabletop lab handoff|tabletop companions|tabletop tower'}
           - {story: motion, grep: 'native 3D plaques|every motion|closed sum'}
           - {story: layout, grep: 'phone canvas|approved pieces|portrait crops|desktop table'}
           - {story: gallery, grep: 'all gallery|final runner'}

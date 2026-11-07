@@ -1,5 +1,5 @@
 import {test,expect,type Page} from '@playwright/test';
-import {readEvents,settled} from './helpers/game';
+import {readEvents,settled,nextGameSeed} from './helpers/game';
 import {replay} from '../src/game/engine';
 // Full-resolution 4K software rendering is substantially slower than a GPU table.
 test.setTimeout(600000);
@@ -33,7 +33,7 @@ test('four people share a walk-up touch table, choose colours, and take turns on
    await touch(page,`CHOOSE ${colours[i]}`);await settled(page);
   }
   await page.screenshot({path:'artifacts/tabletop-ready.png'});
-  await touch(page,'START GAME',true,1);await settled(page);
+  await nextGameSeed(page,'00000000-0000-4000-8000-000000000001');await touch(page,'START GAME',true,1);await settled(page);
   const initial=await readEvents(request,room),players=replay(initial).players;
   expect(initial.slice(0,4).map((e:{intent:{type:string}})=>e.intent.type)).toEqual(['sit','sit','sit','sit']);
   expect(players.map(p=>p.colour)).toEqual([2,0,3,1]);expect(new Set(players.map(p=>p.id)).size).toBe(4);expect(initial[4].actor).toBe(players[1].id);

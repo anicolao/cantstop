@@ -1,16 +1,20 @@
 <script lang="ts">
+ import DiceTowerPicker from './lib/components/DiceTowerPicker.svelte';
+ import DiceTowerBridge from './lib/components/DiceTowerBridge.svelte';
+ import {savedTower} from './game/towers/model';
  import {BOT_LEVELS,botLabel,type BotLevel} from './game/companion';
  import {onMount} from 'svelte';
  import TableView from './lib/components/TableView.svelte';
  import {apply,initialState,replay,chooseBot,choiceBoard,type State,type Intent,type Event} from './game/engine';
  import {repository,playerIdentity} from './game/repository';
  import {readLaunch,launchIntent,type Launch} from './game/launcher';
- import {pairings} from './lib/model/game';
+ import {pairings,equivalentMove} from './lib/model/game';
  import {randomId} from './game/random-id';
  import {frameFor,transitions} from './game/presentation';
  import type {Transition} from './lib/presentation/catalog';
  import {DEFAULTS,RATES,SETTINGS_KEY,normalizePreferences,type Preferences} from './game/settings';
  const initialRoom=new URLSearchParams(location.search).get('table')??'';
+ let tower=$state<string|null>(null),towerStatus=$state('');
  let room=$state(/^[A-Z0-9]{5,8}$/.test(initialRoom)?initialRoom:'');
  let viewer=$state(''),tableState=$state.raw<State>(initialState()),events=$state.raw<Event[]>([]);
  let loaded=$state(false),sending=$state(false),error=$state(''),launch=$state<Launch|null>(null),launching=$state(false),launchRevision=$state(-1);
@@ -37,6 +41,7 @@
  try{launch=readLaunch(location.search);}catch(e){error=(e as Error).message;}
  if(initialRoom&&!/^[A-Z0-9]{5,8}$/.test(initialRoom))error='Enter a table code of 5–8 letters or numbers.';
  onMount(()=>{
+  tower=savedTower();
   try{name=localStorage.getItem('cantstop:name')??'';lastTable=localStorage.getItem('cantstop:lastTable')??'';preferences=normalizePreferences(JSON.parse(localStorage.getItem(SETTINGS_KEY)??'{}'));}catch{/* Defaults also work without storage. */}
   const motion=matchMedia('(prefers-reduced-motion: reduce)');reduced=motion.matches;
   const resize=()=>{phone=innerWidth<700||(innerHeight<520&&innerWidth<1100);};resize();window.addEventListener('resize',resize);
@@ -89,15 +94,17 @@
   const timer=setTimeout(()=>void send(intent,actor),600/rate);
   return()=>clearTimeout(timer);
  });
- async function send(intent:Intent,actor=viewer){
-  if(!repo||sending||imported)return;
-  if(['roll','advance','stop'].includes(intent.type)&&actor===viewer&&!canAct){error=moving?'Let the pieces settle.':'Wait for your turn.';return;}
-  if(directSelection&&['roll','stop'].includes(intent.type)&&actor===viewer&&!decisionReady)return;
+ function towerStatusChanged(text:string){towerStatus=text;}
+ async function send(intent:Intent,actor=viewer):Promise<boolean>{
+  if(!repo||sending||imported)return false;
+  if(['roll','advance','stop'].includes(intent.type)&&actor===viewer&&!canAct){error=moving?'Let the pieces settle.':'Wait for your turn.';return false;}
+  if(directSelection&&['roll','stop'].includes(intent.type)&&actor===viewer&&!decisionReady)return false;
   sending=true;error='';
-  try{await repo.append(actor,intent);}
-  catch(e){error=(e as Error).message;}
+  try{await repo.append(actor,intent);return true;}
+  catch(e){error=(e as Error).message;return false;}
   finally{sending=false;}
  }
+ $effect(()=>{if(canAct&&tableState.game?.phase==='choose'&&(tableState.players[tableState.game.active].tower??null)===tower){const forced=equivalentMove(tableState.game);if(forced)void send(forced);}});
  function selectPair(pairing:number){
   if(!canAct)return;
   if(!directSelection){selected=pairing;runnerColumn=undefined;return;}
@@ -142,7 +149,8 @@
  function nextCompanion(){const names=['Bea','Cal','Dev'];const botName=names.find(n=>!tableState.players.some(p=>p.name===n))??'Companion';void send({type:'invite-bot',id:`bot-${randomId()}`,name:botName,...(tableState.protocol===1?{}:{level:companionLevel})});}
 </script>
 <svelte:head><title>Can’t Stop{room?` · ${room}`:''}</title></svelte:head>
-<div class="game-shell" data-game-phase={tableState.phase} data-revision={tableState.revision} data-moving={moving} data-can-act={canAct} data-actor={viewer}>
+<div class="game-shell" data-game-phase={tableState.phase} data-revision={tableState.revision} data-tower-status={towerStatus} data-moving={moving} data-can-act={canAct} data-actor={viewer}>
+ <DiceTowerBridge gameState={tableState} selected={tower} actors={seated?[viewer]:[]} paused={!loaded||sending||moving||settingsOpen||historyOpen||imported} onIntent={send} onStatus={towerStatusChanged}/>
  <span class="connection-status" role="status" data-status={loaded?'synced':'connecting'}>{loaded?'Table connected':'Connecting'}</span>
  <header class="game-topbar">
   <a class="game-brand" href={import.meta.env.BASE_URL}>CAN’T STOP</a>
@@ -172,13 +180,14 @@
   </section></main>
  {:else}
   <main class="play-surface">
-   {#if frame}<TableView {frame} {phone} {selected} {runnerColumn} players={tableState.players} preset={preferences.view==='overhead'?'overhead':'low'} lowAngle={60} {canAct} {directSelection} {decisionReady} choiceState={choiceBoard(viewing)??undefined} onPair={selectPair} onDestination={selectDestination} onMove={()=>send({type:'advance',pairing:selected,...(runnerColumn!==undefined?{column:runnerColumn}:{})})} onRoll={()=>send({type:'roll'})} onStop={()=>send({type:'stop'})}/>{:else}<div class="game-wait">The game had not begun at this point.</div>{/if}
+   {#if frame}<TableView {frame} {phone} {selected} {runnerColumn} players={tableState.players} preset={preferences.view==='overhead'?'overhead':'low'} lowAngle={60} {canAct} externalDice={!!viewing.players[viewing.game?.active??0]?.tower} {directSelection} {decisionReady} choiceState={choiceBoard(viewing)??undefined} onPair={selectPair} onDestination={selectDestination} onMove={()=>send({type:'advance',pairing:selected,...(runnerColumn!==undefined?{column:runnerColumn}:{})})} onRoll={()=>send({type:'roll'})} onStop={()=>send({type:'stop'})}/>{:else}<div class="game-wait">The game had not begun at this point.</div>{/if}
+   {#if ownTurn&&tableState.players[tableState.game!.active]?.tower}<div class="table-status" role="status">{towerStatus}</div>{/if}
    {#if imported}<div class="table-status">Game log · read only</div>{:else if !seated}<div class="table-status">Watching {activeName}'s table</div>{:else if !ownTurn&&tableState.phase!=='finished'}<div class="table-status">{activeName}'s turn</div>{/if}
    {#if tableState.phase==='finished'&&!historyOpen}<div class="end-actions"><button onclick={showHistory}>Review the game</button>{#if host}<button onclick={()=>send({type:'begin',seed:randomId()})}>Play again</button>{/if}</div>{/if}
   </main>
  {/if}
  {#if error}<div class="game-error" role="alert"><span>{error}</span>{#if repo}<button onclick={()=>repo?.retry().catch(e=>error=e.message)}>Retry</button>{/if}<button aria-label="Dismiss message" onclick={()=>error=''}>×</button></div>{/if}
- {#if settingsOpen}<div class="game-shade" role="presentation"><div class="game-dialog" use:focusDialog role="dialog" aria-modal="true" aria-label="Settings" tabindex="-1"><button class="dialog-close" aria-label="Close settings" onclick={()=>settingsOpen=false}>×</button><h2>Your table</h2><p>These settings stay on this device.</p><label>View<select aria-label="View" bind:value={preferences.view}><option value="standard">Standard · 60°</option><option value="overhead">Overhead</option></select></label><label>Animation speed<select aria-label="Animation speed" bind:value={preferences.animationSpeed}><option value="standard">Standard</option><option value="fast">Fast</option><option value="blazing">Blazing</option></select></label><button class="primary" onclick={()=>settingsOpen=false}>Back to the table</button></div></div>{/if}
+ {#if settingsOpen}<div class="game-shade" role="presentation"><div class="game-dialog" use:focusDialog role="dialog" aria-modal="true" aria-label="Settings" tabindex="-1"><button class="dialog-close" aria-label="Close settings" onclick={()=>settingsOpen=false}>×</button><h2>Your table</h2><p>These settings stay on this device.</p><DiceTowerPicker bind:value={tower} disabled={sending||tableState.protocol===1}/><p>{towerStatus}</p><label>View<select aria-label="View" bind:value={preferences.view}><option value="standard">Standard · 60°</option><option value="overhead">Overhead</option></select></label><label>Animation speed<select aria-label="Animation speed" bind:value={preferences.animationSpeed}><option value="standard">Standard</option><option value="fast">Fast</option><option value="blazing">Blazing</option></select></label><button class="primary" onclick={()=>settingsOpen=false}>Back to the table</button></div></div>{/if}
  {#if helpOpen}<div class="game-shade" role="presentation"><div class="game-dialog" use:focusDialog role="dialog" aria-modal="true" aria-label="How to play" tabindex="-1"><button class="dialog-close" aria-label="Close rules" onclick={()=>helpOpen=false}>×</button><h2>One more roll?</h2><p>Your turn starts with an automatic roll. Choose how to split the four dice into two pairs. Selecting a pairing moves the runners immediately. You can change that pairing until you roll again or save. Each sum advances its numbered track; doubles advance twice.</p><p>You have three black runners for the turn. Once all three are on the board, only their columns can advance. Use every usable sum in a pairing; if only one spare runner could start either column, choose where it goes.</p><p>Roll again to climb higher, or stop to save your progress. If no pairing can move, you bust: this turn’s progress is lost, and the next player rolls.</p><p>Reach a summit and stop to claim it. That column closes to everyone. The first player to claim three columns wins.</p><button class="primary" onclick={()=>helpOpen=false}>Let’s play</button></div></div>{/if}
  {#if historyOpen}<div class="game-history" role="dialog" tabindex="-1" aria-label="Game history"><button class="dialog-close" aria-label="Close history" onclick={closeHistory}>×</button><h2>At the table</h2><p>{events.length} player actions · {imported?'Replay':'Live game'}</p><label>Replay action <output>{historyRevision??events.length} / {events.length}</output><input type="range" min="0" max={events.length} step="1" bind:value={historyRevision} aria-label="Replay action"/></label><ol>{#each events as event}<li><button class:current={historyRevision===event.sequence} onclick={()=>historyRevision=event.sequence}><span>{event.sequence}</span> {tableState.players.find(p=>p.id===event.actor)?.name??'Player'} · {event.intent.type}{event.intent.type==='advance'?` · pairing ${event.intent.pairing+1}`:''}</button></li>{/each}</ol><button onclick={exportLog}>Download game log</button><button class="primary" onclick={closeHistory}>{imported?'Close history':'Return to live game'}</button></div>{/if}
  <input class="file-input" type="file" accept="application/json,.json" aria-label="Import game log" bind:this={importInput} onchange={importLog}/>
