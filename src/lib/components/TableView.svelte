@@ -31,7 +31,7 @@
  {#if frame.dim>0}<div class="connection-shade" style:opacity={frame.dim}></div>{/if}
  <div class="keyboard-controls" aria-label="Game controls">
   {#if tabletop&&choosingSeat!==null}
-   {#each SEATS as seat}<button onclick={()=>onSeat(seat.id)}>Seat {seat.label}</button>{/each}
+   {#each SEATS as seat}<button disabled={(players??[]).some((player,index)=>index!==choosingSeat&&seats[player.id??String(index)]===seat.id)} aria-pressed={seats[players?.[choosingSeat]?.id??String(choosingSeat)]===seat.id} onclick={()=>onSeat(seat.id)}>Seat {seat.label}</button>{/each}
   {:else if frame.state.phase==='choose'||directSelection&&frame.state.phase==='decide'}
    {#each available as p}<button disabled={!canAct||!p.variants.length} aria-pressed={selected===p.index} onfocus={()=>{if(!directSelection)onPair(p.index);}} onclick={()=>onPair(p.index)}>Pair {pairingNumbers(selectionState,p,p.index===selected?runnerColumn:undefined).map(n=>`${n.number}${n.inactive?` (${n.reason})`:''}`).join(' and ')}</button>{/each}
    {#each available.find(p=>p.index===selected)?.variants??[] as v}
