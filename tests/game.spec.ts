@@ -1,7 +1,7 @@
 import {test,expect,type Page,type APIRequestContext} from '@playwright/test';
 import {replay} from '../src/game/engine';
 test.setTimeout(240000);
-import {code,readEvents,settled,clickMesh} from './helpers/game';
+import {code,readEvents,settled,clickMesh,clickFirstPairing} from './helpers/game';
 test('four independent clients launch, take turns, restore, and replay only player choices',async({browser,request},info)=>{
  // Independent devices do not share one browser GPU process. Keep all four full
  // renderers active while isolating driver contexts, just as separate computers do.
@@ -51,7 +51,7 @@ test('a phone creates a table with a companion and restores personal settings',a
  try{
   await page.goto('/');await page.getByLabel('Your name').fill('Ari');await page.getByRole('button',{name:'New table',exact:true}).click();await page.getByRole('button',{name:'Add companion'}).click();await page.getByRole('button',{name:'Start game'}).click();await settled(page);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBe(390);
-  await page.getByRole('button',{name:'Settings',exact:true}).click();await page.getByLabel('Animation speed',{exact:true}).selectOption('blazing');await page.getByRole('button',{name:'Back to the table'}).click();await expect(page.locator('.table-view')).toHaveAttribute('data-phase','choose');const targets=JSON.parse((await page.locator('.table-view').getAttribute('data-targets'))!);const pairing=targets.find((t:{name:string})=>/^\d+ \+ \d+$/.test(t.name));expect(pairing).toBeTruthy();await clickMesh(page,pairing.name);await settled(page);await expect(page.getByRole('button',{name:'Stop and save',exact:true})).toBeEnabled();await clickMesh(page,'ROLL AGAIN');await settled(page);await page.screenshot({path:'artifacts/game-phone.png'});
+  await page.getByRole('button',{name:'Settings',exact:true}).click();await page.getByLabel('Animation speed',{exact:true}).selectOption('blazing');await page.getByRole('button',{name:'Back to the table'}).click();await expect(page.locator('.table-view')).toHaveAttribute('data-phase','choose');await clickFirstPairing(page);await settled(page);await expect(page.getByRole('button',{name:'Stop and save',exact:true})).toBeEnabled();await clickMesh(page,'ROLL AGAIN');await settled(page);await page.screenshot({path:'artifacts/game-phone.png'});
   await page.reload();await settled(page);await page.getByRole('button',{name:'Settings',exact:true}).click();await expect(page.getByLabel('Animation speed',{exact:true})).toHaveValue('blazing');
  }finally{await context.close();}
 });

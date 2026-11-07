@@ -1,4 +1,5 @@
 <script lang="ts">
+ import {botLabel} from '../../game/companion';
  import {T} from '@threlte/core';
  import {slab,outline} from './geometry';
  import type {Library} from './materials';
@@ -9,7 +10,7 @@
  import {SEATS,assignSeats,seatPose,type SeatId,type SeatPose} from '../presentation/tabletop';
  import {COLOUR_NAMES} from '../../game/seating';
  import Die from './Die.svelte';import Plaque from './Plaque.svelte';import Inscription from './Inscription.svelte';
- let {lib,frame,walkup=false,gathering=false,pickingSeat=null,onPickSeat=()=>{},onColour=()=>{},onBegin=()=>{},choiceState,players,seats,pose,selected,runnerColumn,canAct,decisionReady,directSelection,choosingSeat,onSeatPlayer,onSeat,onPair,onDestination,onMove,onRoll,onStop,onMenu}:{lib:Library;walkup?:boolean;gathering?:boolean;pickingSeat?:SeatId|null;onPickSeat?:(seat:SeatId|null)=>void;onColour?:(colour:number)=>void;onBegin?:(actor:string)=>void;frame:Frame;choiceState:BoardState;players:{id:string;name:string;colour?:number}[];seats:Record<string,SeatId>;pose:SeatPose;selected:number;runnerColumn?:number;canAct:boolean;decisionReady:boolean;directSelection:boolean;choosingSeat:number|null;onSeatPlayer:(index:number)=>void;onSeat:(seat:SeatId)=>void;onPair:(pairing:number)=>void;onDestination:(column:number)=>void;onMove:()=>void;onRoll:()=>void;onStop:()=>void;onMenu:(index?:number)=>void}=$props();
+ let {lib,frame,walkup=false,gathering=false,pickingSeat=null,onPickSeat=()=>{},onColour=()=>{},onBegin=()=>{},choiceState,players,seats,pose,selected,runnerColumn,canAct,decisionReady,directSelection,choosingSeat,onSeatPlayer,onSeat,onPair,onDestination,onMove,onRoll,onStop,onMenu}:{lib:Library;walkup?:boolean;gathering?:boolean;pickingSeat?:SeatId|null;onPickSeat?:(seat:SeatId|null)=>void;onColour?:(colour:number)=>void;onBegin?:(actor:string)=>void;frame:Frame;choiceState:BoardState;players:{id:string;name:string;colour?:number;bot?:boolean;level?:import('../../game/companion').BotLevel}[];seats:Record<string,SeatId>;pose:SeatPose;selected:number;runnerColumn?:number;canAct:boolean;decisionReady:boolean;directSelection:boolean;choosingSeat:number|null;onSeatPlayer:(index:number)=>void;onSeat:(seat:SeatId)=>void;onPair:(pairing:number)=>void;onDestination:(column:number)=>void;onMove:()=>void;onRoll:()=>void;onStop:()=>void;onMenu:(index?:number)=>void}=$props();
  const places=$derived(assignSeats(players,seats));
  const tray=slab(outline(7,2.24,.5),.22,.08),leather=slab(outline(6.65,1.9,.4),.035,.04);
  const options=$derived(pairings(choiceState)),selection=$derived(options.find(p=>p.index===selected));
@@ -22,9 +23,9 @@
  <T.Group position={[seat.x,0,seat.z]} rotation.y={seat.angle}>
   <T.Mesh position={[-3.6,.12,-3.25]} castShadow><T.CylinderGeometry args={[.65,.69,.16,48]}/><T.MeshPhysicalMaterial color={FINISH.players[player.colour??i]} roughness={.27} metalness={.25} clearcoat={.8}/></T.Mesh>
   <Inscription text={player.name.trim().slice(0,1).toUpperCase()} position={[-3.6,.23,-3.25]} width={.8} height={.75}/>
-  <Plaque {lib} text={`${player.name.toUpperCase()} · ${frame.claims[i].length}/3`} sub={gathering?'READY TO PLAY':'TOUCH TO CHOOSE YOUR SEAT'} interactive={!gathering} position={[0,.04,-3.25]} width={5.3} depth={1.1} selected={frame.state.active===i} onactivate={()=>onSeatPlayer(i)}/>
+  <Plaque {lib} text={`${player.name.toUpperCase()} · ${frame.claims[i].length}/3`} sub={player.bot?`${botLabel(player.level).toUpperCase()} COMPANION`:gathering?'READY TO PLAY':'TOUCH TO CHOOSE YOUR SEAT'} interactive={!gathering} position={[0,.04,-3.25]} width={5.3} depth={1.1} selected={frame.state.active===i} onactivate={()=>onSeatPlayer(i)}/>
   {#if walkup&&gathering}
-  <Plaque {lib} text={players.length<2?'WAITING FOR ANOTHER COLOUR':'START GAME'} position={[0,.04,1.35]} width={6} depth={1.2} disabled={!canAct||players.length<2||pickingSeat!==null} onactivate={()=>onBegin(player.id)}/>
+  <Plaque {lib} text={players.length<2?'WAITING FOR ANOTHER COLOUR':'START GAME'} position={[0,.04,1.35]} width={6} depth={1.2} disabled={!canAct||player.bot||players.length<2||pickingSeat!==null} onactivate={()=>onBegin(player.id)}/>
   <Plaque {lib} text="TABLE MENU" position={[4.9,.04,.45]} width={2.5} depth={1.3} onactivate={()=>onMenu(i)}/>
  {/if}
  </T.Group>

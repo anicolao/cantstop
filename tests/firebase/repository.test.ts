@@ -46,3 +46,46 @@ test('walk-up colours create a hidden table and a second seated identity can sta
  expect(log.map(e=>e.version)).toEqual([3,3,3]);expect(log.map(e=>e.intent.type)).toEqual(['sit','sit','begin']);expect(replay(log).game!.phase).toBe('choose');
  await assertFails(setDoc(doc(tableRef(second,'walkup','WALK1'),'events','4'),{version:2,id:'downgrade',sequence:4,actor:'walk-b',intent:{type:'roll'}}));
 });
+
+test('web and tabletop levels persist, retry safely, and only the host drives bots',async()=>{
+ const host=db('bot-host'),remote=db('bot-remote');
+ for(const tabletop of [false,true]){
+  const room=tabletop?'BOTTT':'BOTWEB',scope='bot-levels';let state=initialState();
+  const events:Event[]=[];
+  async function act(client:Firestore,uid:string,actor:string,intent:Intent,id=`bot-event-${events.length}`){
+   const pending={id,actor,expectedRevision:events.length,intent};
+   await appendFirestore(client,scope,room,uid,pending,events);
+   state=apply(state,actor,intent);events.push({version:state.protocol,sequence:events.length+1,id,actor,intent});
+  }
+  await act(host,'bot-host','bot-host',tabletop?{type:'sit',seat:'west',colour:2}:{type:'create',name:'Host'});
+  const invitation:Intent={type:'invite-bot',id:'bot-hard',name:'Gold',level:'hard',...(tabletop?{colour:1}:{})};
+  await expect(appendFirestore(remote,scope,room,'bot-remote',{id:'uninvited',actor:'bot-remote',expectedRevision:1,intent:invitation},events)).rejects.toThrow();
+  await act(host,'bot-host','bot-host',invitation,'invite-level');
+  await appendFirestore(host,scope,room,'bot-host',{id:'invite-level',actor:'bot-host',expectedRevision:1,intent:invitation});
+  await expect(appendFirestore(host,scope,room,'bot-host',{id:'invite-level',actor:'bot-host',expectedRevision:1,intent:{...invitation,level:'easy'}})).rejects.toThrow('already been used');
+  await act(remote,'bot-remote','bot-remote',tabletop?{type:'sit',seat:'east',colour:0}:{type:'join',name:'Remote'});
+  await act(host,'bot-host','bot-host',{type:'begin',seed:'companion-rules'});
+  const p= (await import('../../src/lib/model/game')).pairings(state.game!).find(p=>p.variants.length)!;
+  await act(host,'bot-host','bot-host',{type:'advance',pairing:p.index,...(p.variants.length>1?{column:p.variants[0].column}:{})});
+  await act(host,'bot-host','bot-host',{type:'stop'});
+  const {chooseBot}=await import('../../src/game/engine');
+  for(let i=0;i<80&&state.players[state.game!.active].bot;i++){
+   const intent=chooseBot(state)!;
+   await expect(appendFirestore(remote,scope,room,'bot-remote',{id:`steal-${i}`,actor:'bot-hard',expectedRevision:events.length,intent},events)).rejects.toThrow('Take your own seat');
+   await act(host,'bot-host','bot-hard',intent);
+  }
+  expect(state.players[state.game!.active].id).toBe('bot-remote');expect(chooseBot(state)).toBeNull();
+  const stored=(await getDocs(collection(tableRef(host,scope,room),'events'))).docs.map(d=>d.data() as Event).sort((a,b)=>a.sequence-b.sequence);
+  expect(stored).toEqual(events);expect(replay(stored)).toEqual(state);expect(state.players[1].level).toBe('hard');
+ }
+},30000);
+
+test('Firestore rules reject unsupported bot levels and bot invitations with outcomes',async()=>{
+ const host=db('level-rules'),room='LEVELS',scope='level-rules',root=tableRef(host,scope,room);
+ await appendFirestore(host,scope,room,'level-rules',{id:'create',actor:'level-rules',expectedRevision:0,intent:{type:'create',name:'Host'}});
+ for(const extra of [{level:'expert'},{level:'hard',dice:[1,2,3,4]},{level:'hard',colour:2}]){
+  const batch=writeBatch(host);batch.set(root,{owner:'level-rules',members:['level-rules','bot-a'],bots:['bot-a'],revision:2});
+  batch.set(doc(root,'events','2'),{version:2,id:'forged-level',sequence:2,actor:'level-rules',intent:{type:'invite-bot',id:'bot-a',name:'Cal',...extra}});
+  batch.set(doc(root,'commands','forged-level'),{sequence:2});await assertFails(batch.commit());
+ }
+});

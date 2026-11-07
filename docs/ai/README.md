@@ -1,8 +1,13 @@
 # AI handoff comparison and difficulty recommendation
 
+Implementation decision: the playable game now offers Easy, Yolo, Standard, and
+Hard. Hard uses the adjusted +80 policy proposed below as the Expert candidate;
+the no-bonus candidate is omitted. See [companion setup](../GAME.md#companion-levels).
+The experiment results below retain their original policy names.
+
 The ZIP's balanced policy is a substantial upgrade over our current companion. The proposed unmodified no-bonus board-value policy is **not a reliably harder Standard**. Adding 80 gives a modest advantage against balanced, but the raw board-value policies are extremely aggressive. A cautious adjustment to their stopping rule is the best candidate for the upper levels.
 
-This is a research report and offline harness. The playable companion, game protocol, Firebase integration, animation lab, and gallery are unchanged.
+This section describes the original research report and offline harness. The subsequent four-level implementation is documented above; the archived measurements are unchanged.
 
 ## Recommended personalities
 

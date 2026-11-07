@@ -1,4 +1,5 @@
 <script lang="ts">
+ import {botLabel} from '../../game/companion';
  import {T,useThrelte} from '@threlte/core';
  import {interactivity} from '@threlte/extras';
  import {onMount} from 'svelte';
@@ -16,7 +17,7 @@
  import TabletopDock from './TabletopDock.svelte';
  import {TABLETOP_SPAN,type SeatId,type SeatPose} from '../presentation/tabletop';
  import Camera from './Camera.svelte';import Board from './Board.svelte';import Token from './Token.svelte';import Die from './Die.svelte';import Plaque from './Plaque.svelte';import Inscription from './Inscription.svelte';
- let {frame,walkup=false,gathering=false,pickingSeat=null,onPickSeat=()=>{},onColour=()=>{},onBegin=()=>{},tabletop=false,seats={},tabletopPose={x:-9.2,z:9,angle:0},choosingSeat=null,onSeatPlayer=()=>{},onSeat=()=>{},onMenu=()=>{},directSelection=false,decisionReady=true,choiceState,canAct=true,phone=false,selected=2,runnerColumn,focus='table',preset='table',lowAngle=60,players=PLAYERS,orbit=false,onPair=()=>{},onDestination=()=>{},onMove=()=>{},onRoll=()=>{},onStop=()=>{},onReady=()=>{},onTargets=()=>{},onFraming=()=>{}}:{frame:Frame;walkup?:boolean;gathering?:boolean;pickingSeat?:SeatId|null;onPickSeat?:(seat:SeatId|null)=>void;onColour?:(colour:number)=>void;onBegin?:(actor:string)=>void;tabletop?:boolean;seats?:Record<string,SeatId>;tabletopPose?:SeatPose;choosingSeat?:number|null;onSeatPlayer?:(index:number)=>void;onSeat?:(seat:SeatId)=>void;onMenu?:(index?:number)=>void;directSelection?:boolean;decisionReady?:boolean;choiceState?:BoardState;canAct?:boolean;phone?:boolean;selected?:number;runnerColumn?:number;focus?:string;preset?:string;lowAngle?:number;players?:{id?:string;name:string;colour?:number}[];orbit?:boolean;onPair?:(n:number)=>void;onDestination?:(n:number)=>void;onMove?:()=>void;onRoll?:()=>void;onStop?:()=>void;onReady?:()=>void;onFraming?:(framing:BoardFraming)=>void;onTargets?:(targets:{name:string;x:number;y:number}[])=>void}=$props();
+ let {frame,walkup=false,gathering=false,pickingSeat=null,onPickSeat=()=>{},onColour=()=>{},onBegin=()=>{},tabletop=false,seats={},tabletopPose={x:-9.2,z:9,angle:0},choosingSeat=null,onSeatPlayer=()=>{},onSeat=()=>{},onMenu=()=>{},directSelection=false,decisionReady=true,choiceState,canAct=true,phone=false,selected=2,runnerColumn,focus='table',preset='table',lowAngle=60,players=PLAYERS,orbit=false,onPair=()=>{},onDestination=()=>{},onMove=()=>{},onRoll=()=>{},onStop=()=>{},onReady=()=>{},onTargets=()=>{},onFraming=()=>{}}:{frame:Frame;walkup?:boolean;gathering?:boolean;pickingSeat?:SeatId|null;onPickSeat?:(seat:SeatId|null)=>void;onColour?:(colour:number)=>void;onBegin?:(actor:string)=>void;tabletop?:boolean;seats?:Record<string,SeatId>;tabletopPose?:SeatPose;choosingSeat?:number|null;onSeatPlayer?:(index:number)=>void;onSeat?:(seat:SeatId)=>void;onMenu?:(index?:number)=>void;directSelection?:boolean;decisionReady?:boolean;choiceState?:BoardState;canAct?:boolean;phone?:boolean;selected?:number;runnerColumn?:number;focus?:string;preset?:string;lowAngle?:number;players?:{id?:string;name:string;colour?:number;bot?:boolean;level?:import('../../game/companion').BotLevel}[];orbit?:boolean;onPair?:(n:number)=>void;onDestination?:(n:number)=>void;onMove?:()=>void;onRoll?:()=>void;onStop?:()=>void;onReady?:()=>void;onFraming?:(framing:BoardFraming)=>void;onTargets?:(targets:{name:string;x:number;y:number}[])=>void}=$props();
  const {scene,renderer,invalidate,camera,size}=useThrelte();interactivity();
  let lib=$state.raw<Library>();let ready=$state(false);
  const table=slab(outline(28,25,.9),.25,.22),mat=slab(outline(24,21,.65),.06,.09);
@@ -107,7 +108,7 @@
      <T.CylinderGeometry args={[.58,.58,.07,64]}/><T.MeshPhysicalMaterial color={FINISH.players[player.colour??i]} roughness={.27} metalness={.25} clearcoat={.8}/>
     </T.Mesh>
     <Inscription text={player.name.trim().slice(0,1).toUpperCase()} position={[0,.23,0]} width={.75} height={.70}/>
-    <Plaque {lib} text={`${player.name.toUpperCase()}   ${frame.claims[i].length}/3`} position={[0,.015,.98]} width={phone&&!landscape?3.05:phone?2.5:2.9} depth={.65} selected={frame.state.active===i} interactive={false}/>
+    <Plaque {lib} text={`${player.name.toUpperCase()}   ${frame.claims[i].length}/3`} sub={player.bot?`${botLabel(player.level).toUpperCase()} COMPANION`:undefined} position={[0,.015,.98]} width={phone&&!landscape?3.05:phone?2.5:2.9} depth={.65} selected={frame.state.active===i} interactive={false}/>
     {#each Array.from({length:frame.claims[i].length}) as _,j}<Token {lib} color={FINISH.players[player.colour??i]} position={[(j-.5)*.6,.02,1.65]} scale={.8} owner={player.colour??i}/>{/each}
    </T.Group>
   {/each}

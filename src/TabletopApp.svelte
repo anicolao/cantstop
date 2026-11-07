@@ -1,7 +1,8 @@
 <script lang="ts">
+ import {BOT_LEVELS,botLabel,type BotLevel} from './game/companion';
  import {onMount,untrack} from 'svelte';
  import TableView from './lib/components/TableView.svelte';
- import {initialState,replay,choiceBoard,type State,type Event,type Intent} from './game/engine';
+ import {initialState,replay,chooseBot,choiceBoard,type State,type Event,type Intent} from './game/engine';
  import {COLOUR_NAMES} from './game/seating';
  import {repository,playerIdentity} from './game/repository';
  import {newLocalIdentity,localIdentities} from './game/local-players';
@@ -19,11 +20,14 @@
  let room=$state(''),viewer=$state(''),locals=$state<string[]>([]),tableState=$state.raw<State>(initialState(3)),events=$state.raw<Event[]>([]);
  let repo=$state.raw<ReturnType<typeof repository>>(),loaded=$state(false),sending=$state(false),error=$state('');
  let selected=$state(-1),runnerColumn=$state<number>(),pickingSeat=$state<SeatId|null>(null),choosingSeat=$state<number|null>(null);
+ let companionLevel=$state<BotLevel>('standard'),companionColour=$state(1);
  let seatsSaved=$state<Record<string,SeatId>>({});
  let step=$state.raw<Transition|null>(null),queue=$state.raw<Transition[]>([]),time=$state(0),reduced=$state(false);
  let speed=$state<'standard'|'fast'|'blazing'>('standard'),menu=$state(false),rules=$state(false),aspect=$state(16/9);
  let pose=$state<SeatPose>({...seatPose('south-left')}),menuPose=$state<SeatPose>({...seatPose('south-left')}),turning=$state(false);
  let motion:{from:SeatPose;to:SeatPose;start:number;duration:number}|null=null,target='',initialized=false;
+ const host=$derived(viewer!==''&&tableState.host===viewer);
+ const freeColours=$derived(COLOUR_NAMES.map((name,colour)=>({name,colour})).filter(c=>!tableState.players.some(p=>p.colour===c.colour)));
  const gathering=$derived(tableState.phase==='gathering');
  const places=$derived(assignSeats(tableState.players,{...Object.fromEntries(tableState.players.map(p=>[p.id,p.seat])),...seatsSaved}));
  const frame=$derived(frameFor(tableState,reduced?null:step,time,reduced)??emptyFrame);
@@ -77,6 +81,19 @@
   const to={...seatPose(seat)};untrack(()=>{if(!initialized||reduce||document.hidden){pose=to;motion=null;turning=false;}else{motion={from:{...pose},to,start:performance.now(),duration:1100/rate};turning=true;}initialized=true;});
  });
  $effect(()=>{const table=room,seats=places;if(table&&tableState.players.length)try{localStorage.setItem(`${sessionKey}:seats:${table}`,JSON.stringify(seats));}catch{}});
+ $effect(()=>{if(freeColours.length&&!freeColours.some(c=>c.colour===companionColour))companionColour=freeColours[0].colour;});
+ $effect(()=>{
+  const current=tableState,connection=repo,rate=RATES[speed];
+  if(!host||!loaded||sending||moving||turning||menu||!connection)return;
+  const intent=chooseBot(current);if(!intent)return;
+  const actor=current.players[current.game!.active].id;
+  const timer=setTimeout(()=>void act(intent,actor),600/rate);
+  return()=>clearTimeout(timer);
+ });
+ async function addCompanion(){
+  if(!host||!gathering||!freeColours.some(c=>c.colour===companionColour)||tableState.players.length>=4)return;
+  await act({type:'invite-bot',id:`bot-${randomId()}`,name:COLOUR_NAMES[companionColour],level:companionLevel,colour:companionColour},tableState.host);
+ }
  async function act(intent:Intent,actor=active?.id??viewer){
   if(!repo||sending)return;sending=true;error='';try{await repo.append(actor,intent);}catch(e){error=(e as Error).message;}finally{sending=false;}
  }
@@ -100,6 +117,6 @@
  {#if error}<div class="game-error" role="alert"><span>{error}</span><button onclick={()=>repo?.retry().catch(e=>error=e.message)}>Retry</button><button aria-label="Dismiss message" onclick={()=>error=''}>×</button></div>{/if}
  {#if menu}<div class="game-shade" role="presentation"><div class="game-dialog" role="dialog" aria-modal="true" aria-label="Table menu" tabindex="-1"><button class="dialog-close" aria-label="Close table menu" onclick={()=>menu=false}>×</button><h2>{rules?'How to play':'At the table'}</h2>
   {#if rules}<p>Touch an empty seat and choose a colour. Two to four people can play. Start when everyone is ready.</p><p>Your turn rolls automatically. Choose a pairing to move the pawns. Change the pairing until you roll again or stop and save.</p><p>A roll with no usable pairing loses this turn’s progress. Stop at a summit to claim it. Three claimed summits win.</p>
-  {:else}<label>Animation speed<select aria-label="Animation speed" bind:value={speed} onchange={saveSpeed}><option value="standard">Standard</option><option value="fast">Fast</option><option value="blazing">Blazing</option></select></label><button onclick={fullscreen}>Toggle fullscreen</button><button onclick={()=>rules=true}>How to play</button>{#if events.length}<button onclick={exportLog}>Download game log</button>{/if}<button onclick={fresh}>New game</button>{/if}
+  {:else}{#if gathering&&host}<label>Companion level<select aria-label="Companion level" bind:value={companionLevel} disabled={sending||tableState.players.length>=4}>{#each BOT_LEVELS as level}<option value={level.id}>{level.label}</option>{/each}</select></label><p>{BOT_LEVELS.find(level=>level.id===companionLevel)?.description}</p><label>Companion colour<select aria-label="Companion colour" bind:value={companionColour} disabled={sending||!freeColours.length}>{#each freeColours as colour}<option value={colour.colour}>{colour.name}</option>{/each}</select></label><button disabled={sending||tableState.players.length>=4} onclick={addCompanion}>Add companion</button>{/if}{#each tableState.players.filter(p=>p.bot) as bot}<p>{bot.name} · {botLabel(bot.level)} companion</p>{/each}<label>Animation speed<select aria-label="Animation speed" bind:value={speed} onchange={saveSpeed}><option value="standard">Standard</option><option value="fast">Fast</option><option value="blazing">Blazing</option></select></label><button onclick={fullscreen}>Toggle fullscreen</button><button onclick={()=>rules=true}>How to play</button>{#if events.length}<button onclick={exportLog}>Download game log</button>{/if}<button onclick={fresh}>New game</button>{/if}
   <button class="primary" onclick={()=>menu=false}>Back to the table</button></div></div>{/if}
 </div>

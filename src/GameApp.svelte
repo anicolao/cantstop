@@ -1,4 +1,5 @@
 <script lang="ts">
+ import {BOT_LEVELS,botLabel,type BotLevel} from './game/companion';
  import {onMount} from 'svelte';
  import TableView from './lib/components/TableView.svelte';
  import {apply,initialState,replay,chooseBot,choiceBoard,type State,type Intent,type Event} from './game/engine';
@@ -14,6 +15,7 @@
  let viewer=$state(''),tableState=$state.raw<State>(initialState()),events=$state.raw<Event[]>([]);
  let loaded=$state(false),sending=$state(false),error=$state(''),launch=$state<Launch|null>(null),launching=$state(false),launchRevision=$state(-1);
  let repo=$state.raw<ReturnType<typeof repository>>();
+ let companionLevel=$state<BotLevel>('standard');
  let name=$state(''),joinCode=$state(''),lastTable=$state('');
  let preferences=$state<Preferences>({...DEFAULTS}),settingsOpen=$state(false),historyOpen=$state(false),helpOpen=$state(false);
  let historyRevision=$state<number|null>(null),imported=$state(false),copied=$state(false);
@@ -137,7 +139,7 @@
   };node.addEventListener('keydown',key);
   return {destroy(){node.removeEventListener('keydown',key);previous?.focus();}};
  }
- function nextCompanion(){const names=['Bea','Cal','Dev'];const botName=names.find(n=>!tableState.players.some(p=>p.name===n))??'Companion';void send({type:'invite-bot',id:`bot-${randomId()}`,name:botName});}
+ function nextCompanion(){const names=['Bea','Cal','Dev'];const botName=names.find(n=>!tableState.players.some(p=>p.name===n))??'Companion';void send({type:'invite-bot',id:`bot-${randomId()}`,name:botName,...(tableState.protocol===1?{}:{level:companionLevel})});}
 </script>
 <svelte:head><title>Can’t Stop{room?` · ${room}`:''}</title></svelte:head>
 <div class="game-shell" data-game-phase={tableState.phase} data-revision={tableState.revision} data-moving={moving} data-can-act={canAct} data-actor={viewer}>
@@ -162,9 +164,9 @@
   <main class="game-wait"><h1>Opening your table…</h1><p>Your invitation and seat stay with you.</p></main>
  {:else if tableState.phase==='gathering'}
   <main class="game-gathering"><section class="game-folio"><span class="eyebrow">{room}</span><h1>{tableState.players.length?'A place at the table':'Waiting for the host'}</h1><p>Two to four players. Friends can join using the invitation.</p>
-   <ol class="seat-list">{#each tableState.players as player,i}<li><span class="seat-dot" style:background={['#08615c','#965508','#8d2030','#523171'][i]}></span>{player.name}{player.id===viewer?' · you':''}{player.bot?' · companion':''}{player.id===tableState.host?' · host':''}</li>{/each}</ol>
+   <ol class="seat-list">{#each tableState.players as player,i}<li><span class="seat-dot" style:background={['#08615c','#965508','#8d2030','#523171'][i]}></span>{player.name}{player.id===viewer?' · you':''}{player.bot?` · ${botLabel(player.level)} companion`:''}{player.id===tableState.host?' · host':''}</li>{/each}</ol>
    {#if !seated&&!launch}<label>Your name<input maxlength="24" bind:value={name}/></label><button class="primary" disabled={sending||!tableState.players.length||tableState.players.length>=4} onclick={()=>{launchRevision=-1;launch={mode:'join',table:room,name:name.trim(),returnTo:null};}}>Join this table</button>{/if}
-   {#if host}<div class="folio-actions"><button disabled={sending||tableState.players.length>=4} onclick={nextCompanion}>Add companion</button><button class="primary" disabled={sending||tableState.players.length<2} onclick={()=>send({type:'begin',seed:randomId()})}>Start game</button></div>{/if}
+   {#if host}{#if tableState.protocol!==1}<label>Companion level<select aria-label="Companion level" bind:value={companionLevel} disabled={sending||tableState.players.length>=4}>{#each BOT_LEVELS as level}<option value={level.id}>{level.label}</option>{/each}</select></label><p>{BOT_LEVELS.find(level=>level.id===companionLevel)?.description}</p>{:else}<p>This table uses Classic companions.</p>{/if}<div class="folio-actions"><button disabled={sending||tableState.players.length>=4} onclick={nextCompanion}>Add companion</button><button class="primary" disabled={sending||tableState.players.length<2} onclick={()=>send({type:'begin',seed:randomId()})}>Start game</button></div>{/if}
    <label>Invitation<input aria-label="Invitation link" readonly value={invitation} onclick={e=>e.currentTarget.select()}/></label>
    {#if launch?.mode==='join'&&!tableState.players.length}<p class="waiting-note">Your seat will be taken when the host arrives.</p>{/if}
   </section></main>
