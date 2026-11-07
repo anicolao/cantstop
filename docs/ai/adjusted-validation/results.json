@@ -1,0 +1,112 @@
+{
+  "start": 53000000,
+  "seedCount": 500,
+  "seatOrders": 2,
+  "sourceHashes": {
+    "run.ts": "2018efd63e1d7db9b7cb6c646f1d69bd2e4c392a827d571abf5acd378f680ab7",
+    "policies.ts": "afc293bf540a482f07a162c12dd6ce49c34dc2c0790cefb43e0bb7e0cdbc2617",
+    "neural.ts": "5821293b3c20ed61f9db6998a0a6d94e867c609b71f8f1b19ebd1cbd7ff747da",
+    "streams.py": "66c260fc28c6c9f809c36b649b81fb4ec93cbce90056289a73917a3ff7912720"
+  },
+  "policyDefinitions": [
+    {
+      "name": "balanced",
+      "style": "balanced",
+      "risk": 1
+    },
+    {
+      "name": "board-0-risk2",
+      "bonus": 0,
+      "evRisk": 2
+    },
+    {
+      "name": "board-80-risk2",
+      "bonus": 80,
+      "evRisk": 2
+    }
+  ],
+  "streamSha256": "00b10ff550620db3d8dabc295383d7162f097ced23e3f424c26308499913a1f1",
+  "summaries": [
+    {
+      "a": "balanced",
+      "b": "board-0-risk2",
+      "games": 1000,
+      "wins": 486,
+      "winRate": 0.486,
+      "byOrder": [
+        237,
+        249
+      ],
+      "stats": [
+        [
+          7016,
+          1700,
+          26276,
+          5316,
+          28082
+        ],
+        [
+          7030,
+          2830,
+          38403,
+          4200,
+          32227
+        ]
+      ]
+    },
+    {
+      "a": "balanced",
+      "b": "board-80-risk2",
+      "games": 1000,
+      "wins": 439,
+      "winRate": 0.439,
+      "byOrder": [
+        221,
+        218
+      ],
+      "stats": [
+        [
+          6741,
+          1667,
+          25437,
+          5074,
+          26981
+        ],
+        [
+          6802,
+          3288,
+          40438,
+          3514,
+          30916
+        ]
+      ]
+    },
+    {
+      "a": "board-0-risk2",
+      "b": "board-80-risk2",
+      "games": 1000,
+      "wins": 459,
+      "winRate": 0.459,
+      "byOrder": [
+        230,
+        229
+      ],
+      "stats": [
+        [
+          6380,
+          2294,
+          32609,
+          4086,
+          29038
+        ],
+        [
+          6421,
+          2910,
+          36410,
+          3511,
+          28926
+        ]
+      ]
+    }
+  ]
+}
