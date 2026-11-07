@@ -23,7 +23,8 @@ are game-local identities; display names are not identities.
 Only these actions enter history:
 
 - `create {name}` and `join {name}`: choose a seat.
-- `invite-bot {id,name}`: the host chooses an optional companion.
+- `invite-bot {id,name,level?,colour?}`: the host chooses a companion and its level.
+  Walk-up tabletop invitations also choose an unused colour.
 - `begin {seed}`: the host starts or restarts with a fresh entropy choice.
 - `roll {}`: the active player risks progress by choosing to roll again.
 - `advance {pairing,column?}`: select a pairing (index 0–2) and, if needed, the
@@ -91,3 +92,36 @@ seat establishes the owner; any seated colour may choose begin. Colour labels
 are derived. Automatic opening rolls, reversible current-roll choices, saving,
 busting, and victory have the same semantics as protocol 2. Existing versions
 remain replayable and a log cannot mix protocol versions.
+
+
+## Companion levels
+
+New companions offer **Easy**, **Yolo**, **Standard**, and **Hard**, with Standard
+selected initially. Choose the level before adding the companion in the web
+lobby. On `/tt/`, a seated host opens **Table menu**, chooses **Companion level**
+and an unused **Companion colour**, then touches **Add companion**. A companion
+uses one of the four player slots; it does not create a local human Auth session.
+
+- Easy uses balanced pairing with four times the bust-loss penalty and tends to
+  save early.
+- Yolo uses the same pairing with 0.35 times the penalty and tends to overreach.
+- Standard uses the original balanced policy.
+- Hard uses base-1.5 exponential board value, an 80-point completed-column bonus,
+  and exact weighted enumeration of next-roll outcomes with double bust loss.
+  In three- and four-player games it races the leading opponent on each column.
+
+The level is an explicit invitation choice, retained across reloads and rematches.
+It cannot be changed during play. Protocol-1 invitations retain the classic
+policy; existing protocol-2 companions without a level also keep that policy.
+Only protocols 2 and 3 accept the optional level. No policy consults the seed or
+actual future throws. Every bot move is an ordinary attributed pairing, roll, or
+banking intent submitted by the table's authenticated host.
+
+The reducer derives a count of throws in the current turn so balanced policies
+can take at least two throws unless banking wins. Replacements do not increment
+it; turn ends reset it. It is reconstructed by replay and is never persisted as
+an event field. Animation speed, seating preferences, and camera settings have
+no effect on bot decisions. The same policies drive web and tabletop turns.
+
+The calibrated two-player results and caveats are in [the AI report](ai/README.md).
+The no-bonus board policy is not exposed as a separate difficulty tier.

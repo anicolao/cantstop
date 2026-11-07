@@ -19,6 +19,14 @@ Reload recovers the current game and its anonymous seats automatically. People
 never enter or manage room details. During play, a colour’s badge can move that
 person to an empty physical place. Other badges continue to face their owners.
 
+To play with a companion, first take a human seat. Open that seat's **Table menu**
+and choose a **Companion level** (Easy, Yolo, Standard, or Hard) and an unused
+**Companion colour**, then touch **Add companion**. Add more humans or companions
+up to four colours total, return to the table, and start from a human seat.
+Companion badges show their level. The host runs their turns automatically; a
+human never needs to press their controls. Companions recover with the table on
+reload and do not consume separate local human authentication profiles.
+
 The active colour’s **Table menu** provides speed, fullscreen, rules, game-log
 export, and New game. Its dialog appears near that person and faces the same
 edge. Standard/Fast/Blazing and reduced motion apply to board turns and dice
@@ -28,7 +36,8 @@ animation sampler are shared with desktop, phone, and the animation lab.
 
 ## Identity and replay
 
-Each colour has a separate, persisted anonymous Firebase Auth session. Protocol
+Each human colour has a separate, persisted anonymous Firebase Auth session.
+Companions are explicitly invited bot identities controlled only by the host. Protocol
 3 records the person’s `sit {seat,colour}` choice; display labels come from the
 colour, so no player-name input or synthetic create/join action is needed. Any
 seated colour can submit the user’s Start action. Game outcomes and forced rolls

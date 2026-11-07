@@ -8,7 +8,7 @@ service cloud.firestore {
    return i is map && (
     (i.type=='sit' && i.keys().hasAll(['type','seat','colour']) && i.keys().hasOnly(['type','seat','colour']) && i.seat in ['south-left','south-right','east','north-right','north-left','west'] && i.colour is int && i.colour>=0 && i.colour<4)
     || (i.type in ['create','join'] && i.keys().hasOnly(['type','name']) && i.name is string && i.name.size()>0 && i.name.size()<=24 && i.name.matches('.*\\S.*'))
-    || (i.type=='invite-bot' && i.keys().hasOnly(['type','id','name']) && i.id is string && i.id.matches('bot-[A-Za-z0-9_-]{1,80}') && i.name is string && i.name.size()>0 && i.name.size()<=24 && i.name.matches('.*\\S.*'))
+    || (i.type=='invite-bot' && i.keys().hasAll(['type','id','name']) && i.keys().hasOnly(['type','id','name','level','colour']) && (!('level' in i) || i.level in ['easy','yolo','standard','hard']) && (!('colour' in i) || (i.colour is int && i.colour>=0 && i.colour<4)) && i.id is string && i.id.matches('bot-[A-Za-z0-9_-]{1,80}') && i.name is string && i.name.size()>0 && i.name.size()<=24 && i.name.matches('.*\\S.*'))
     || (i.type=='begin' && i.keys().hasOnly(['type','seed']) && i.seed is string && i.seed.size()>0 && i.seed.size()<=96)
     || (i.type=='advance' && i.keys().hasAll(['type','pairing']) && i.keys().hasOnly(['type','pairing','column']) && i.pairing is int && i.pairing>=0 && i.pairing<=2 && (!('column' in i) || (i.column is int && i.column>=2 && i.column<=12)))
     || (i.type in ['roll','stop'] && i.keys().hasOnly(['type']))
@@ -43,6 +43,7 @@ service cloud.firestore {
      && request.resource.data.version in [1,2,3] && request.resource.data.id is string && request.resource.data.id.matches('[A-Za-z0-9_-]{1,128}')
      && request.resource.data.actor is string && request.resource.data.sequence is int
      && intent(request.resource.data.intent)
+     && (request.resource.data.intent.type!='invite-bot' || ((!('level' in request.resource.data.intent) || request.resource.data.version in [2,3]) && (request.resource.data.version==3 ? ('colour' in request.resource.data.intent) : !('colour' in request.resource.data.intent))))
      && (request.resource.data.intent.type!='sit' || request.resource.data.version==3)
      && sequence==string(request.resource.data.sequence)
      && getAfter(table(scope,room)).data.revision==request.resource.data.sequence
