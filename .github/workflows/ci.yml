@@ -35,3 +35,9 @@ jobs:
           path: |
             artifacts/
             test-results/
+      - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: tabletop-native-captures
+          retention-days: 7
+          path: artifacts/tabletop*.png
