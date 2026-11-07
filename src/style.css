@@ -22,3 +22,22 @@
 @media(max-height:520px) and (min-width:701px){.game-topbar{height:40px}.game-welcome,.game-gathering{align-items:flex-start;padding:20px}.game-folio{padding:22px;gap:14px}.welcome-copy h1{font-size:44px}.game-history{top:40px}.game-dialog{gap:16px}}
 
 .connection-status{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+
+/* A horizontal touch table has no privileged top edge. The native 3D dock
+   carries its menu, and its dialogs face the same physical player. */
+.game-shell.tabletop.playing .game-topbar,.game-shell.tabletop.playing>.connection-status{display:none}
+.game-shell.tabletop.playing .play-surface{height:100dvh;min-height:0}
+.game-shell.tabletop.playing .game-shade{display:block}
+.game-shell.tabletop.playing .game-dialog,.game-shell.tabletop.playing .game-history{position:absolute;left:clamp(250px,var(--edge-x),calc(100% - 250px));top:clamp(250px,var(--edge-y),calc(100% - 250px));right:auto;bottom:auto;transform:translate(-50%,-50%) rotate(var(--edge-angle));width:440px;max-height:480px;overflow:auto;box-sizing:border-box}
+.game-shell.tabletop.playing .game-dialog button,.game-shell.tabletop.playing .game-dialog select{min-height:54px;font-size:17px}
+.game-shell.tabletop.playing .table-status,.game-shell.tabletop.playing .end-actions{left:50%;right:auto;bottom:auto;top:50%;transform:translate(-50%,-50%) rotate(var(--edge-angle));white-space:nowrap}
+.local-player-entry{display:grid;gap:10px;padding:16px 0;border-top:1px solid #c9ab7230;margin-top:12px}
+.tabletop-seat-list{border:1px solid #c9ab7250;border-radius:8px;padding:12px;display:grid;gap:10px;margin:12px 0}
+.tabletop-seat-list legend{font-size:13px;color:#d9bd87}.tabletop-seat-list label{display:grid;grid-template-columns:1fr 1fr;align-items:center;gap:12px}
+.tabletop-seat-list select{min-height:44px;background:#1a2b2b;color:#f1dfb9;border:1px solid #c9ab7250;border-radius:6px;padding:8px}
+
+.game-shell.tabletop .game-gathering{overflow:auto;align-items:flex-start}
+.game-shell.tabletop .game-folio{width:min(680px,100%);gap:14px;padding:28px}
+.game-shell.tabletop .seat-list,.game-shell.tabletop .tabletop-seat-list{grid-template-columns:1fr 1fr}
+
+.game-shell.tabletop.playing .end-actions{left:var(--edge-x);top:var(--edge-y)}

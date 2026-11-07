@@ -2,12 +2,13 @@
  import {onMount} from 'svelte';
  import desktopConcept from '../docs/ux/concepts/01-desktop.png';
  import phoneConcept from '../docs/ux/concepts/02-phone.png';
+ import {seatPose,seatTravel,type SeatId} from './lib/presentation/tabletop';
  import TableView from './lib/components/TableView.svelte';
  import {examples,durationOf,atTime,type Example,type Transition} from './lib/presentation/catalog';
  import {sample} from './lib/presentation/frame';
- import {apply,type Intent} from './lib/model/game';
+ import {apply,PLAYERS,type Intent} from './lib/model/game';
  const params=new URLSearchParams(location.search);
- let gallery=$state(location.pathname==='/gallery'||location.pathname==='/dev/components');
+ let gallery=$state(/\/(gallery|dev\/components)\/?$/.test(location.pathname));
  let scenario=$state(params.get('scene')??'ready');
  let custom=$state.raw<Example>();
  let time=$state(0),playing=$state(false),loop=$state(false),speed=$state(1);
@@ -30,12 +31,18 @@
  const transition=$derived(atTime(active,time));
  const frame=$derived(sample(transition,transition.time,reduced));
  const selectedComponent=$derived(catalog.find(c=>c.id===component)??catalog[0]);
+ let choosingSeat=$state<number|null>(null);
+ let tabletopSeats=$state<Record<string,SeatId>>({'0':'south-left','1':'east','2':'north-right','3':'west'});
+ const tabletopPlayers=PLAYERS.map((p,i)=>({...p,id:String(i)}));
+ const stageTabletop=$derived(device==='tabletop'&&!gallery);
+ const tabletopPose=$derived(seatTravel(seatPose(tabletopSeats[String(transition.before.active)]),seatPose(tabletopSeats[String(transition.after.active)]),Math.max(0,(transition.time/transition.duration-.7)/.3)));
+ function takeTabletopSeat(seat:SeatId){if(choosingSeat===null||Object.entries(tabletopSeats).some(([id,s])=>s===seat&&id!==String(choosingSeat)))return;tabletopSeats={...tabletopSeats,[choosingSeat]:seat};choosingSeat=null;}
  const stagePhone=$derived(device==='phone'||device==='phone-landscape');
  const stageLandscape=$derived(device==='phone-landscape');
  const previewSize=$derived(stageLandscape?{w:844,h:390}:{w:390,h:844});
  const groups=['The turn','Turning points','Close inspection'];
  const phoneScale=$derived(Math.min(1,(viewportSize.h-24)/previewSize.h,(viewportSize.w-24)/previewSize.w));
- function updateUrl(){const url=new URL(location.href);url.pathname=gallery?'/gallery':'/dev/animations';url.searchParams.set('scene',scenario);url.searchParams.set('device',device);url.searchParams.delete('look');if(gallery)url.searchParams.set('component',component);else url.searchParams.delete('component');if(clean)url.searchParams.set('clean','1');else url.searchParams.delete('clean');history.replaceState(null,'',url);}
+ function updateUrl(){const url=new URL(location.href);url.pathname=`${import.meta.env.BASE_URL}${gallery?'gallery':'dev/animations'}`;url.searchParams.set('scene',scenario);url.searchParams.set('device',device);url.searchParams.delete('look');if(gallery)url.searchParams.set('component',component);else url.searchParams.delete('component');if(clean)url.searchParams.set('clean','1');else url.searchParams.delete('clean');history.replaceState(null,'',url);}
  function choose(id:string){scenario=id;custom=undefined;time=0;playing=false;selected=['last-runner','no-pawn'].includes(id)?1:id==='closed-column'?0:2;runnerColumn=undefined;notice='';updateUrl();}
  function switchView(value:boolean){gallery=value;orbit=value;playing=false;updateUrl();}
  function replay(){time=0;playing=!reduced;}
@@ -89,7 +96,8 @@
   {#if !clean}
    <div class="view-toolbar"><div class="view-heading"><span class="eyebrow">{gallery?'COMPONENT':'SCENE'}</span><strong>{gallery?selectedComponent.name:active.name}</strong></div><div class="view-tools">
     {#if !gallery}<div class="segmented" role="group" aria-label="Form factor">
-     <button aria-label="Desktop" aria-pressed={!stagePhone} class:active={!stagePhone} onclick={()=>{device='desktop';updateUrl();}}>▰ <span>Desktop</span></button>
+     <button aria-label="Desktop" aria-pressed={device==='desktop'} class:active={device==='desktop'} onclick={()=>{device='desktop';updateUrl();}}>▰ <span>Desktop</span></button>
+     <button aria-label="Tabletop" aria-pressed={stageTabletop} class:active={stageTabletop} onclick={()=>{device='tabletop';updateUrl();}}>▦ <span>Tabletop</span></button>
      <button aria-label="Phone portrait" aria-pressed={device==='phone'} class:active={device==='phone'} onclick={()=>{device='phone';updateUrl();}}>▯ <span>Portrait</span></button>
      <button aria-label="Phone landscape" aria-pressed={stageLandscape} class:active={stageLandscape} onclick={()=>{device='phone-landscape';updateUrl();}}>▭ <span>Landscape</span></button>
     </div>{/if}
@@ -99,9 +107,9 @@
 
   {/if}
   <div class="preview-stage" class:phone-stage={stagePhone&&!gallery} class:gallery-stage={gallery} bind:this={viewport}>
-   <div class="stage-annotation top">{gallery?'MATERIAL STUDY / REAL-TIME 3D':stagePhone?(stageLandscape?'PHONE LANDSCAPE / 844 × 390':'PHONE PORTRAIT / 390 × 844'):'DESKTOP / LIVE SCENE'}</div>
+   <div class="stage-annotation top">{gallery?'MATERIAL STUDY / REAL-TIME 3D':stageTabletop?'55-INCH TOUCH TABLE / SIX PLACES':stagePhone?(stageLandscape?'PHONE LANDSCAPE / 844 × 390':'PHONE PORTRAIT / 390 × 844'):'DESKTOP / LIVE SCENE'}</div>
    <div class="scene-container" class:phone-frame={stagePhone&&!gallery} class:landscape-frame={stageLandscape&&!gallery} style:width={stagePhone&&!gallery&&!clean?`${previewSize.w*phoneScale}px`:'100%'} style:height={stagePhone&&!gallery&&!clean?`${previewSize.h*phoneScale}px`:'100%'}>
-    <TableView {frame} phone={stagePhone&&!gallery} {selected} {runnerColumn} focus={gallery?component:'table'} {preset} {lowAngle} orbit={gallery&&orbit} onPair={pair} onDestination={(n)=>runnerColumn=n} onMove={move} onRoll={()=>act({type:'roll'})} onStop={()=>act({type:'stop'})}/>
+    <TableView {frame} tabletop={stageTabletop} seats={tabletopSeats} {tabletopPose} {choosingSeat} players={stageTabletop?tabletopPlayers:undefined} onSeatPlayer={i=>choosingSeat=i} onSeat={takeTabletopSeat} onMenu={()=>notice='Use the playable table for fullscreen, shared players, and settings.'} phone={stagePhone&&!gallery} {selected} {runnerColumn} focus={gallery?component:'table'} {preset} {lowAngle} orbit={gallery&&orbit} onPair={pair} onDestination={(n)=>runnerColumn=n} onMove={move} onRoll={()=>act({type:'roll'})} onStop={()=>act({type:'stop'})}/>
     {#if stagePhone&&!gallery&&!clean}<div class="home-indicator"></div>{/if}
    </div>
    {#if preset==='low'}
@@ -126,5 +134,5 @@
   {/if}
  </div>
  </main>
- {#if !clean}<footer class="workspace-footer"><span>CAN’T STOP <i> / </i> DESKTOP + PHONE STUDIES</span><span>THRELTE · PHYSICAL MATERIALS · SEEDED MOTION</span><a href={stagePhone?phoneConcept:desktopConcept} target="_blank" rel="noreferrer">Concept reference ↗</a></footer>{/if}
+ {#if !clean}<footer class="workspace-footer"><span>CAN’T STOP <i> / </i> DESKTOP + PHONE + TABLETOP STUDIES</span><span>THRELTE · PHYSICAL MATERIALS · SEEDED MOTION</span><a href={stagePhone?phoneConcept:desktopConcept} target="_blank" rel="noreferrer">Concept reference ↗</a></footer>{/if}
 </div>

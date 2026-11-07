@@ -372,3 +372,20 @@ The current review step is the desktop and phone component gallery and animation
 ## Approved implementation baseline
 
 The current maple, ivory, lacquer, walnut, dark player pieces, square board and pawn podium are approved for this implementation. The playable game defaults to a 60° tilt. Personal settings offer an overhead view and Standard, Fast, or Blazing animations. Those settings do not enter the player-action history. The reviewed lab and gallery remain separate routes using the same renderer and motion sampler as the full game. See [docs/GAME.md](docs/GAME.md) for the replay and multiplayer contract.
+
+
+## Implemented shared tabletop
+
+The 55-inch horizontal touch table uses six physical places: two along each long
+edge and one at each short edge. Up to four players choose places in the gathering
+and can change to an empty place by touching their nameplate during play. Each
+nameplate faces its owner. The playfield spins toward the active person; their
+dice and controls travel around the perimeter and face the same edge. Settings,
+history, and rules open near that person, correctly oriented. Fullscreen removes
+browser chrome using a direct touch gesture. Turn-opening rolls and reversible
+pairing choices follow the desktop/phone flow.
+
+Shared-screen humans have separate anonymous identities. Seating and display
+movement are local preferences and never affect the action log. Reload recovers
+both identities and places. Native 1080p captures for all four edges, the user
+journey, and 4K verification are in [the tabletop review](docs/TABLETOP.md).

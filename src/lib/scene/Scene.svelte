@@ -13,8 +13,10 @@
  import RunnerPodium from './RunnerPodium.svelte';
  import {pairingNumbers} from '../presentation/choices';
  import {pairings,PLAYERS,lengthOf,type State as BoardState} from '../model/game';
+ import TabletopDock from './TabletopDock.svelte';
+ import {TABLETOP_SPAN,type SeatId,type SeatPose} from '../presentation/tabletop';
  import Camera from './Camera.svelte';import Board from './Board.svelte';import Token from './Token.svelte';import Die from './Die.svelte';import Plaque from './Plaque.svelte';import Inscription from './Inscription.svelte';
- let {frame,directSelection=false,decisionReady=true,choiceState,canAct=true,phone=false,selected=2,runnerColumn,focus='table',preset='table',lowAngle=60,players=PLAYERS,orbit=false,onPair=()=>{},onDestination=()=>{},onMove=()=>{},onRoll=()=>{},onStop=()=>{},onReady=()=>{},onTargets=()=>{},onFraming=()=>{}}:{frame:Frame;directSelection?:boolean;decisionReady?:boolean;choiceState?:BoardState;canAct?:boolean;phone?:boolean;selected?:number;runnerColumn?:number;focus?:string;preset?:string;lowAngle?:number;players?:{name:string}[];orbit?:boolean;onPair?:(n:number)=>void;onDestination?:(n:number)=>void;onMove?:()=>void;onRoll?:()=>void;onStop?:()=>void;onReady?:()=>void;onFraming?:(framing:BoardFraming)=>void;onTargets?:(targets:{name:string;x:number;y:number}[])=>void}=$props();
+ let {frame,tabletop=false,seats={},tabletopPose={x:-9.2,z:9,angle:0},choosingSeat=null,onSeatPlayer=()=>{},onSeat=()=>{},onMenu=()=>{},directSelection=false,decisionReady=true,choiceState,canAct=true,phone=false,selected=2,runnerColumn,focus='table',preset='table',lowAngle=60,players=PLAYERS,orbit=false,onPair=()=>{},onDestination=()=>{},onMove=()=>{},onRoll=()=>{},onStop=()=>{},onReady=()=>{},onTargets=()=>{},onFraming=()=>{}}:{frame:Frame;tabletop?:boolean;seats?:Record<string,SeatId>;tabletopPose?:SeatPose;choosingSeat?:number|null;onSeatPlayer?:(index:number)=>void;onSeat?:(seat:SeatId)=>void;onMenu?:()=>void;directSelection?:boolean;decisionReady?:boolean;choiceState?:BoardState;canAct?:boolean;phone?:boolean;selected?:number;runnerColumn?:number;focus?:string;preset?:string;lowAngle?:number;players?:{id?:string;name:string}[];orbit?:boolean;onPair?:(n:number)=>void;onDestination?:(n:number)=>void;onMove?:()=>void;onRoll?:()=>void;onStop?:()=>void;onReady?:()=>void;onFraming?:(framing:BoardFraming)=>void;onTargets?:(targets:{name:string;x:number;y:number}[])=>void}=$props();
  const {scene,renderer,invalidate,camera,size}=useThrelte();interactivity();
  let lib=$state.raw<Library>();let ready=$state(false);
  const table=slab(outline(28,25,.9),.25,.22),mat=slab(outline(24,21,.65),.06,.09);
@@ -22,9 +24,9 @@
  const mapleSample=slab(outline(6.5,1.9,.18),.16,.065);
  const disc=slab(outline(2.65,.68,.22),.09,.04),sampleTrack=slab(outline(1.35,1.35,.12),.08,.04);
  const landscape=$derived(phone&&$size.width/$size.height>1.2);
- const boardScale=$derived(landscape?.97:phone?.98:1);
- const boardX=$derived(landscape?-4.2:0);
- const boardZ=$derived(landscape?.25:phone?-1.1:-.8);
+ const boardScale=$derived(tabletop?1.22:landscape?.97:phone?.98:1);
+ const boardX=$derived(tabletop?0:landscape?-4.2:0);
+ const boardZ=$derived(tabletop?0:landscape?.25:phone?-1.1:-.8);
  const diceX=$derived(landscape?5.5:phone?0:-4.0),diceZ=$derived(landscape?-1.5:phone?6.25:7.7);
  const options=$derived(pairings(choiceState??frame.state));
  const selection=$derived(options.find(p=>p.index===selected));
@@ -46,6 +48,7 @@
   return {value,position:[finalX+Math.sin(i*2.4+progress*9)*remaining*.8,.84+lift,Math.cos(i*3+progress*7)*remaining*.5] as Vec3,rotation:[remaining*(8+i*.8),[-.12,.13,-.08,.17][i]+remaining*(10-i),remaining*(6+i*.5)] as Vec3};
  }));
  $effect(()=>{
+  const pose=tabletopPose,currentTabletop=tabletop,picking=choosingSeat,seatMap=seats;
   const currentFrame=frame,currentPhone=phone,currentPreset=preset,currentLowAngle=lowAngle,currentFocus=focus,currentSelected=selected,currentDestination=runnerColumn;
   const width=$size.width,height=$size.height,cam=$camera;
   if(!ready)return;
@@ -79,22 +82,22 @@
   return()=>{disposed=true;if(lib)disposeLibrary(lib);if(surfaces)Object.values(surfaces).forEach((t:Texture)=>t.dispose());environment?.dispose();[table,mat,tray,trayLeather,disc,sampleTrack,mapleSample].forEach(g=>g.dispose());};
  });
 </script>
-<Camera {phone} {preset} {lowAngle} {focus} {orbit}/>
+<Camera {tabletop} {phone} {preset} {lowAngle} {focus} {orbit}/>
 <T.HemisphereLight args={['#f7e8cc','#122831',.3]}/>
 <T.DirectionalLight position={[-8,14,6]} color="#ffdfa6" intensity={2.5} castShadow shadow.mapSize.width={2048} shadow.mapSize.height={2048} shadow.camera.left={-15} shadow.camera.right={15} shadow.camera.top={15} shadow.camera.bottom={-15} shadow.camera.near={1} shadow.camera.far={45} shadow.bias={-.00015} shadow.normalBias={.02} shadow.radius={3}/>
 <T.DirectionalLight position={[9,10,-10]} color="#b8dce5" intensity={.6}/>
 <T.PointLight position={[-9,5,-6]} color="#f6b25c" intensity={65} distance={24} decay={2}/>
 {#if lib && ready}
- <T.Mesh geometry={table} rotation.x={-Math.PI/2} position.y={-.75} material={lib.wood} receiveShadow/>
- <T.Mesh geometry={mat} rotation.x={-Math.PI/2} position.y={-.35} material={lib.cloth} receiveShadow/>
+ <T.Mesh geometry={table} rotation.x={-Math.PI/2} position.y={-.75} scale={tabletop?[Math.max(44,TABLETOP_SPAN*$size.width/$size.height)/28*1.06,TABLETOP_SPAN/25*1.1,1]:1} material={lib.wood} receiveShadow/>
+ <T.Mesh geometry={mat} rotation.x={-Math.PI/2} position.y={-.35} scale={tabletop?[Math.max(44,TABLETOP_SPAN*$size.width/$size.height)/24,TABLETOP_SPAN/21,1]:1} material={lib.cloth} receiveShadow/>
  {#if focus==='table'||focus==='board'}
-  <T.Group name="game-board" position={[focus==='board'?0:boardX,0,focus==='board'?0:boardZ]} scale={focus==='board'?1:boardScale}>
+  <T.Group rotation.y={tabletop?tabletopPose.angle:0} name="game-board" position={[focus==='board'?0:boardX,0,focus==='board'?0:boardZ]} scale={focus==='board'?1:boardScale}>
    <RunnerPodium {lib}/>
    <Board {lib} {closed} highlight={frame.lightColumn} preview={destinations}/>
    {#each frame.pieces as piece (piece.id)}<Token {lib} position={piece.position} color={FINISH.players[piece.owner]} runner={piece.runner} opacity={piece.opacity} scale={piece.scale} owner={piece.owner}/>{/each}
   </T.Group>
  {/if}
- {#if focus==='table'}
+ {#if focus==='table'&&!tabletop}
   {#each players as player,i}
    {@const x=landscape?[-8.3,-.1,-10.4,-.1][i]:phone?[-3.3,-1.1,1.1,3.3][i]:[-6.9,6.9,-7.6,7.6][i]}
    {@const z=landscape?[-4.4,-4.4,3.7,3.7][i]:phone?[-8.05,-8.05,-8.05,-8.05][i]:[-5.85,-5.85,3.65,3.65][i]}
@@ -109,7 +112,7 @@
    </T.Group>
   {/each}
  {/if}
- {#if focus==='table'||focus==='dice'}
+ {#if focus==='table'&&!tabletop||focus==='dice'}
   <T.Group position={[focus==='dice'?0:diceX,0,focus==='dice'?0:diceZ]}>
    <T.Mesh geometry={tray} rotation.x={-Math.PI/2} material={lib.wood} castShadow receiveShadow/>
    <T.Mesh geometry={trayLeather} rotation.x={-Math.PI/2} position.y={.24} material={lib.leather} receiveShadow/>
@@ -117,7 +120,7 @@
    <Inscription text="✧     FORTUNE FAVOURS THE BRAVE     ✧" position={[0,.30,.90]} width={5.4} height={.21}/>
   </T.Group>
  {/if}
- {#if focus==='table'}
+ {#if focus==='table'&&!tabletop}
   {#if isChoose}
    <T.Group position={[landscape?5.5:phone?0:-4.0,.04,landscape?.3:phone?7.85:9.4]}>
     {#each options as option,i}
@@ -147,6 +150,7 @@
    </T.Group>
   {/if}
  {/if}
+ {#if tabletop&&focus==='table'}<TabletopDock {lib} {frame} choiceState={choiceState??frame.state} players={players.map((p,i)=>({...p,id:p.id??String(i)}))} {seats} pose={tabletopPose} {selected} {runnerColumn} {canAct} {decisionReady} {directSelection} {choosingSeat} {onSeatPlayer} {onSeat} {onPair} {onDestination} {onMove} {onRoll} {onStop} {onMenu}/>{/if}
  {#if focus==='runner'||focus==='token'}
   <T.Mesh geometry={disc} rotation.x={-Math.PI/2} scale={[2.8,4,1]} material={lib.enamel} receiveShadow/>
   {#each samplePositions as x,i}

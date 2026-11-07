@@ -28,3 +28,10 @@ are personal and local. They must never affect replay or enter the game log.
 Run type checks, unit/integration tests, the build, and browser checks appropriate
 to a change. Keep native canvas pointer handlers and accessible keyboard controls.
 Do not weaken rendering or screenshot tolerances to pass tests.
+
+Tabletop is a shared overhead touchscreen with six physical places (two per long
+edge, one per short edge). Physical seating and orientation are device preferences,
+never game events. Local humans use separate persisted anonymous Firebase Auth
+apps and ordinary joins/actions; never impersonate another UID or treat humans
+as bots. Preserve remote turn ownership. Use the shared scene and native mesh
+controls, orienting the board and active dock toward the current physical seat.

@@ -30,7 +30,7 @@ The gallery contains the rotated square board, ruby dice, black runners, colored
 
 The lab examples include: a ready table, pairing, dice rolling, a double advance, changing a pairing, stopping, a complete turn, busting, a provisional summit, claiming, victory, a final-runner choice, and reconnection. Each has play/pause, replay, a scrubber, speed, loop, and reduced-motion controls. Space toggles playback; arrow keys seek in 0.1-second increments when focus is outside a form control. Beat markers jump to review points. The reconnection example is a presentation study, not a real network connection.
 
-Switch between **Desktop**, **Portrait**, and **Landscape** in the toolbar. The two phone previews preserve their 390 × 844 and 844 × 390 canvas proportions. Portrait enlarges the board by a further 17% to maximize tile size, with a compact player row and closer control spacing: the empty side vertices are cropped, while all eleven tracks and their complete number labels stay visible. Player medallions move into a compact top row so they remain readable at the larger scale. On an actual narrow viewport the workshop becomes horizontally browsable; focus mode fills the screen with the game. Rotating a phone to landscape enlarges the board to nearly fill the screen height with a small border, and puts dice/actions on the right, preserving the current state and timeline. Tabletop and TV modes are intentionally deferred.
+Switch between **Desktop**, **Portrait**, and **Landscape** in the toolbar. The two phone previews preserve their 390 × 844 and 844 × 390 canvas proportions. Portrait enlarges the board by a further 17% to maximize tile size, with a compact player row and closer control spacing: the empty side vertices are cropped, while all eleven tracks and their complete number labels stay visible. Player medallions move into a compact top row so they remain readable at the larger scale. On an actual narrow viewport the workshop becomes horizontally browsable; focus mode fills the screen with the game. Rotating a phone to landscape enlarges the board to nearly fill the screen height with a small border, and puts dice/actions on the right, preserving the current state and timeline. Tabletop is available in the playable game and as a lab device preview; TV mode remains deferred.
 
 Buttons use pale maple faces on walnut bodies. Selected buttons use a warmer maple tone. The Action pieces gallery shows normal and selected buttons together, and the Materials gallery includes a large swatch of the same maple finish. Closed-column numbers are muted and struck through on the board. Pairing numbers use that same treatment whenever the model cannot use that sum: a closed column, no spare pawn, a summit, or an unchosen last-pawn destination. A partial pairing stays selectable; the move button names only usable columns. Review this in **A closed number** (`?scene=closed-column`), where 5 + 10 moves only 5, or **No spare pawns** (`?scene=no-pawn`), where 6 + 8 moves only 6.
 
@@ -142,3 +142,16 @@ separate Gameroom integration change recognizes the exact Can't Stop WebURL;
 adding or enabling a production catalog entry remains a catalog-owner action.
 
 See [docs/GAME.md](docs/GAME.md) for the intent protocol and replay guarantees.
+
+## Shared tabletop
+
+For a horizontal 55-inch touch table, enter a name and choose **New tabletop
+game**. Add two to four people on the same screen and pick their physical places:
+two on each long edge, one on each short edge. The board rotates toward the
+active player and their dice and native controls move beside that person.
+Tap a nameplate to change seats. Table menu offers oriented settings and
+fullscreen. Anonymous identities and physical places survive reload; the
+intent-only game log is unchanged. Settings and `?view=tabletop` also select this
+mode. The animation lab includes a Tabletop preview with scrubbable handoffs.
+
+See [tabletop journeys and native captures](docs/TABLETOP.md).
