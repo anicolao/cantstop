@@ -1,7 +1,8 @@
 import {test,expect,type Page} from '@playwright/test';
 import {readEvents,settled} from './helpers/game';
 import {replay} from '../src/game/engine';
-test.setTimeout(300000);
+// Full-resolution 4K software rendering is substantially slower than a GPU table.
+test.setTimeout(600000);
 async function touch(page:Page,name:string,commits=true){
  const revision=Number(await page.locator('.game-shell').getAttribute('data-revision'));
  await expect.poll(async()=>JSON.parse(await page.locator('.table-view').getAttribute('data-targets')??'[]').some((t:{name:string})=>t.name===name)).toBe(true);

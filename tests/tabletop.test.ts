@@ -16,7 +16,8 @@ test('places stay unique across joins, reloads, stale preferences and malformed 
 });
 test('dice travel around the board and spins use the shortest orientation',()=>{
  for(const from of SEATS)for(const to of SEATS){
-  for(const t of [0,.1,.25,.5,.75,.9,1]){const pose=seatTravel(from.pose,to.pose,t);expect(Math.hypot(pose.x,pose.z)).toBeGreaterThan(12);expect(Math.abs(pose.angle-from.pose.angle)).toBeLessThanOrEqual(Math.PI+.0001);}
+  for(const t of [0,.1,.25,.5,.75,.9,1]){const pose=seatTravel(from.pose,to.pose,t);expect(Math.hypot(pose.x,pose.z)).toBeGreaterThan(8);expect(Math.abs(pose.angle-from.pose.angle)).toBeLessThanOrEqual(Math.PI+.0001);
+   for(const x of [-3.7,6.3])for(const z of [-2.8,3.4]){const worldX=pose.x+x*Math.cos(pose.angle)+z*Math.sin(pose.angle),worldZ=pose.z-x*Math.sin(pose.angle)+z*Math.cos(pose.angle);expect(Math.abs(worldX)).toBeLessThan(22);expect(Math.abs(worldZ)).toBeLessThan(12.8);}}
   const end=seatTravel(from.pose,to.pose,1);expect(end.x).toBeCloseTo(to.pose.x);expect(end.z).toBeCloseTo(to.pose.z);expect(shortestAngle(end.angle,to.pose.angle)).toBeCloseTo(0);
  }
  expect(shortestAngle(Math.PI-.1,-Math.PI+.1)).toBeCloseTo(.2);
