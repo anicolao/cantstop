@@ -19,7 +19,9 @@ jobs:
   publish:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04
+    timeout-minutes: 25
     permissions:
+      actions: read
       contents: write
       pages: write
       pull-requests: write
@@ -61,23 +63,27 @@ jobs:
             mkdir -p "dist/$route"
             cp dist/index.html "dist/$route/index.html"
           done
+          bun scripts/deploy-pages.ts stamp
       - uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: dist
           destination_dir: ${{ steps.preview.outputs.destination }}
           keep_files: true
-      # GITHUB_TOKEN pushes do not trigger Pages builds. Request one explicitly.
-      - name: Deploy the updated Pages branch
+      # The Pages API only acknowledges queuing. Wait for the actual deployment
+      # and verify the live build before publishing the preview link.
+      - name: Deploy and verify the live Pages build
+        id: deployment
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh api --method POST "repos/$GITHUB_REPOSITORY/pages/builds"
+          PREVIEW_DESTINATION: ${{ steps.preview.outputs.destination }}
+        run: bun scripts/deploy-pages.ts deploy
       - name: Link preview from PR
         if: steps.preview.outputs.destination != ''
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
-          PREVIEW_URL: https://${{ github.repository_owner }}.github.io/cantstop/${{ steps.preview.outputs.destination }}/
+          PREVIEW_URL: ${{ steps.deployment.outputs.url }}
         run: >-
           gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --edit-last --create-if-none
           --body "Playable preview: [$PREVIEW_URL]($PREVIEW_URL)"

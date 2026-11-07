@@ -128,6 +128,16 @@ animation. Original staged lab examples still expose each action separately.
 CI verifies types, unit tests, Firebase rules, builds, and browser scenarios.
 The Pages publishing workflow runs independently and does not run or depend on
 those checks; a failing verification job cannot block a buildable preview.
+Publishing reports success only after the GitHub Pages deployment workflow for
+that exact `gh-pages` commit finishes successfully and the live files match the
+build. It verifies `/`, `/tt/`, `/gallery/`, both lab entry routes, and the entry
+HTML's JavaScript/CSS assets. A public `deployment.json` marker identifies the
+source commit, publishing run, and attempt, so an older cached build cannot pass.
+The deployment wait is bounded to 15 minutes and live-file verification to two
+minutes. Failures include the deployment run link or mismatched paths in the log.
+The PR preview link is posted only after verification; the job summary links the
+verified site and deployment run. To retry a failed publish, rerun **Publish
+playable table**, or dispatch that workflow with the PR number (blank for main).
 
 The default view is 60°. Settings offer Overhead and Standard/Fast/Blazing motion
 (1×/2×/4×); preferences stay on the device and never alter the game log. History
