@@ -107,7 +107,15 @@ Every same-repository PR automatically publishes a playable GitHub Pages preview
 at `https://anicolao.github.io/cantstop/prNUMBER/` and adds its link to the PR.
 Each preview has its own Firestore namespace. Builds on main publish the root
 site. Client configuration comes from repository `VITE_FIREBASE_*` variables;
-the dedicated project is `cantstop-preview-anicolao`.
+the dedicated project is `cantstop-preview-anicolao`. First-time project setup uses
+the configured anonymous provider and Firestore rules directly from the CLI:
+
+```sh
+bun x firebase deploy --only auth,firestore:rules --project cantstop-preview-anicolao
+```
+
+The pinned Firebase CLI supports `deploy --only auth`; a console visit or billing
+upgrade is not required for anonymous Auth provisioning.
 The default view is 60°. Settings offer Overhead and Standard/Fast/Blazing motion
 (1×/2×/4×); preferences stay on the device and never alter the game log. History
 lets you inspect any action boundary, download a JSON log, and return to the live
