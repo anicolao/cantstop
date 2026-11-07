@@ -4,14 +4,14 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "bun run server/dev.ts",
+    "dev": "bun run scripts/dev.ts",
     "build": "vite build",
     "preview": "vite preview --host 127.0.0.1 --port 4199 --strictPort",
     "check": "svelte-check --tsconfig ./tsconfig.json",
     "test:unit": "bun test tests/*.test.ts",
     "test:e2e": "playwright test",
-    "start": "bun run server/start.ts",
-    "test:firebase": "bun run scripts/test-firebase.ts"
+    "test:firebase": "bun run scripts/test-firebase.ts",
+    "dev:emulators": "bun run scripts/dev.ts local"
   },
   "dependencies": {
     "@threlte/core": "8.5.16",
