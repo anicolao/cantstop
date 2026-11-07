@@ -1,0 +1,46 @@
+{
+  "archiveSha256": "1922c659ba99da17815f89d02d268fe24ea7a0f6330b8b67bfb0c750fb48c623",
+  "baselineCommit": "97e125effd969dfc74db89cdd436f855e2bc6d67",
+  "bunVersion": "1.3.10",
+  "pythonVersion": "3.9.6",
+  "modelSha256": {
+    "value": "e228a2adff7d194f13c86af10db4129023fde89a0132f948ca905562a3acff3c",
+    "rl": "f15ca45a50692c49fd6cae788bfc2d9b9cd10e480b199318759f07ae41371b3b",
+    "oracle": "e2bf0329cba0760047870067d2da43caf18436f72487538000b6baec97e97f12",
+    "selfplay": "49fbd2dcd03891ba2cbe181a730691527215c41636ec309c884821dc136ed6b1",
+    "imitation": "ad46a984b3aadc6f3a1dbfd5c3fcd594f95c0a3082a5a8523f3e4548e6ce589a",
+    "selfplay-retry": "ed92ffdfc07a272729ba10a78bcdd867dc31889a6b70bd04f073b6276c85dac6"
+  },
+  "deliveredSourceSha256": {
+    "scripts/ai-comparison/export-models.py": "143a9bc5026acf3e7c485e14b5afab37f5e891202ed3ac5a734869ca09894c68",
+    "scripts/ai-comparison/neural.ts": "5821293b3c20ed61f9db6998a0a6d94e867c609b71f8f1b19ebd1cbd7ff747da",
+    "scripts/ai-comparison/policies.ts": "afc293bf540a482f07a162c12dd6ce49c34dc2c0790cefb43e0bb7e0cdbc2617",
+    "scripts/ai-comparison/report.ts": "6f037cf3d51f2d2c6e7151e3f1b297e27cfcd3e2fbab0cdbeb256d0608b69843",
+    "scripts/ai-comparison/run.ts": "2018efd63e1d7db9b7cb6c646f1d69bd2e4c392a827d571abf5acd378f680ab7",
+    "scripts/ai-comparison/streams.py": "66c260fc28c6c9f809c36b649b81fb4ec93cbce90056289a73917a3ff7912720",
+    "scripts/ai-comparison/verify-models.ts": "4a3553966d026f1e563113e990b40d73d30451ec54ae355221079b466c759d47",
+    "scripts/ai-comparison/verify-reference.ts": "7b99a86c463f8d2e589b68e6f69d5e3d300409d38a17111e69c9373219c3a35d"
+  },
+  "resultFilesSha256": {
+    "docs/ai/adjusted-validation/games.csv": "e8cee80a172b94ad919591b6969c35ac08ef647befa0958e8263a5545868ff15",
+    "docs/ai/adjusted-validation/results.json": "8a69c78d7bb899862ae0d440eade48826b36b3866fc085429da1b93d0c4f0c33",
+    "docs/ai/alternatives/games.csv": "cee74f71aa949dda104aa412b9b0bc8ed9ccb8a737ece98414421e6d7157f843",
+    "docs/ai/alternatives/results.json": "4b6d21f2854099ba797ff8cd7ce6289ffa1dabf466793092ea038240bf6d8d93",
+    "docs/ai/calibration/games.csv": "6b5a46cc939bd29a412a15caa24b866e4ecd6552a3122fd8ff1c2bd33e7a3cee",
+    "docs/ai/calibration/results.json": "b964bbc5e61ab0fd2ea6f154d41523ff32beeda0128ea1a1add79e2c1972458d",
+    "docs/ai/games.csv": "88a31a6df2524c66f0346ec2bb2e4d99551967411a9cd9e1533434145c74cf3a",
+    "docs/ai/levels/games.csv": "7e5b9026704679127e78109b4e93d0108492683376ca03f49a6cc817e7ec2803",
+    "docs/ai/levels/results.json": "58c3e3ffa9d45fe9018d133f36ede580847a611792d6646a1f12d3b7574b7755",
+    "docs/ai/neural/games.csv": "478c5a78a903bc61e9862880d79efdac421cbb8e1f162a26429e820f5d93fa98",
+    "docs/ai/neural/results.json": "46282d6471b9846baf48574352cba72daa60c89da24b29b7e4d5520e63942753",
+    "docs/ai/refinements/games.csv": "6f28871436810da3801d3edb23cb78cb4d182733f08c6a6c6cb1cb1e01479d37",
+    "docs/ai/refinements/results.json": "2337532ba10b858bdf04382caa7457b8e807920d8ac151e3eb11b837b78fb366",
+    "docs/ai/results.json": "7273ce3d07e1bf3842a0cd36d41f40a780dc1b870395cf51e98d22cb148047f7",
+    "docs/ai/risk-adjusted/games.csv": "1b30295dd9acfd8bc2ab4982174cc82e15912ec113c9f7efb7660c926b73d9e5",
+    "docs/ai/risk-adjusted/results.json": "1d3cfa6a65c79b76702225634cee69c3a7ff0ff0267f0c55f35456d61f06f884",
+    "docs/ai/sampled/games.csv": "fafd879b7f58adf94f602e14794c351279a560a0d86017fb29baf2201c39c05d",
+    "docs/ai/sampled/results.json": "ecf90ba76479e2e395073e6ead3172f789e224f30ec46bcef928ffa399aa0cec",
+    "docs/ai/validation/games.csv": "1459b315a4366d224563505b235eee8a04bfbf26ec1685dec72a8e5ddbcd173d",
+    "docs/ai/validation/results.json": "9d986c40e6cd2add3fd673232b1ed5b2f57b55c1ad59033bdf1c8a5041169434"
+  }
+}
