@@ -1,4 +1,7 @@
 <script lang="ts">
+ import DiceTowerPicker from './lib/components/DiceTowerPicker.svelte';
+ import DiceTowerBridge from './lib/components/DiceTowerBridge.svelte';
+ import {savedTower} from './game/towers/model';
  import {BOT_LEVELS,botLabel,type BotLevel} from './game/companion';
  import {onMount,untrack} from 'svelte';
  import TableView from './lib/components/TableView.svelte';
@@ -9,7 +12,7 @@
  import {randomId} from './game/random-id';
  import {previewScope} from './firebase';
  import {frameFor,transitions} from './game/presentation';
- import {pairings,type State as BoardState} from './lib/model/game';
+ import {pairings,equivalentMove,type State as BoardState} from './lib/model/game';
  import {sample} from './lib/presentation/frame';
  import type {Transition} from './lib/presentation/catalog';
  import {assignSeats,seatPose,seatTravel,TABLETOP_SPAN,type SeatId,type SeatPose} from './lib/presentation/tabletop';
@@ -17,6 +20,7 @@
  const sessionKey=`cantstop:walkup:${previewScope}`;
  const empty:BoardState={version:1,seed:0,rollIndex:0,active:0,phase:'ready',saved:[{},{},{},{}],runners:{},claims:[[],[],[],[]],dice:[1,1,1,1],lastOutcome:'none'};
  const emptyFrame={...sample({before:empty,after:empty,kind:'ready',duration:1},1),label:'Choose a seat and a colour',detail:'Two to four colours. Start when ready.'};
+ let tower=$state<string|null>(null),towerStatus=$state('');
  let room=$state(''),viewer=$state(''),locals=$state<string[]>([]),tableState=$state.raw<State>(initialState(3)),events=$state.raw<Event[]>([]);
  let repo=$state.raw<ReturnType<typeof repository>>(),loaded=$state(false),sending=$state(false),error=$state('');
  let selected=$state(-1),runnerColumn=$state<number>(),pickingSeat=$state<SeatId|null>(null),choosingSeat=$state<number|null>(null);
@@ -41,6 +45,7 @@
  const overlayPose=$derived(menu?menuPose:pose);
  const worldHeight=$derived(Math.max(TABLETOP_SPAN,44/aspect));
  onMount(()=>{
+  tower=savedTower();
   if(!/\/tt\/?$/.test(location.pathname))history.replaceState(null,'',`${import.meta.env.BASE_URL}tt/`);
   try{speed=normalizePreferences(JSON.parse(localStorage.getItem(SETTINGS_KEY)??'{}')).animationSpeed;room=localStorage.getItem(sessionKey)??'';}catch{}
   if(!/^[A-F0-9]{8}$/.test(room))room=randomId().replaceAll('-','').slice(0,8).toUpperCase();
@@ -94,9 +99,11 @@
   if(!host||!gathering||!freeColours.some(c=>c.colour===companionColour)||tableState.players.length>=4)return;
   await act({type:'invite-bot',id:`bot-${randomId()}`,name:COLOUR_NAMES[companionColour],level:companionLevel,colour:companionColour},tableState.host);
  }
- async function act(intent:Intent,actor=active?.id??viewer){
-  if(!repo||sending)return;sending=true;error='';try{await repo.append(actor,intent);}catch(e){error=(e as Error).message;}finally{sending=false;}
+ function towerStatusChanged(text:string){towerStatus=text;}
+ async function act(intent:Intent,actor=active?.id??viewer):Promise<boolean>{
+  if(!repo||sending)return false;sending=true;error='';try{await repo.append(actor,intent);return true;}catch(e){error=(e as Error).message;return false;}finally{sending=false;}
  }
+ $effect(()=>{if(canAct&&tableState.game?.phase==='choose'&&(tableState.players[tableState.game.active].tower??null)===tower){const forced=equivalentMove(tableState.game);if(forced)void act(forced);}});
  async function sit(colour:number){
   const seat=pickingSeat;if(!repo||!seat||!canAct||tableState.players.some(p=>p.colour===colour))return;
   sending=true;error='';try{const actor=tableState.players.length?(locals.find(id=>!tableState.players.some(p=>p.id===id))??await newLocalIdentity(room)):viewer;locals=await localIdentities(room);await repo.append(actor,{type:'sit',seat,colour});pickingSeat=null;}catch(e){error=(e as Error).message;}finally{locals=await localIdentities(room);sending=false;}
@@ -111,12 +118,13 @@
  function exportLog(){const url=URL.createObjectURL(new Blob([JSON.stringify(events,null,2)],{type:'application/json'})),a=document.createElement('a');a.href=url;a.download='cantstop-tabletop.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
 </script>
 <svelte:head><title>Can’t Stop · Touch table</title></svelte:head>
-<div class="game-shell tabletop playing walkup" data-room={room} data-game-phase={tableState.phase} data-revision={tableState.revision} data-moving={moving||turning} data-can-act={canAct} data-actor={active?.id??viewer} data-local-players={JSON.stringify(locals)} style:--edge-angle={`${-overlayPose.angle*180/Math.PI}deg`} style:--edge-x={`${50+overlayPose.x/(worldHeight*aspect)*100}%`} style:--edge-y={`${50+overlayPose.z/worldHeight*100}%`}>
- <main class="play-surface"><TableView {frame} tabletop walkup {gathering} {pickingSeat} onPickSeat={seat=>pickingSeat=seat} onColour={sit} onBegin={actor=>act({type:'begin',seed:randomId()},actor)} seats={places} tabletopPose={pose} tabletopTurning={turning} {choosingSeat} onSeatPlayer={i=>{if(!gathering)choosingSeat=i;}} onSeat={takeSeat} onMenu={openMenu} players={tableState.players} {selected} {runnerColumn} {canAct} directSelection {decisionReady} choiceState={board??empty} onPair={pair} onDestination={destination} onRoll={()=>{if(canAct&&decisionReady)void act({type:'roll'});}} onStop={()=>{if(canAct&&decisionReady)void act({type:'stop'});}}/>
+<div class="game-shell tabletop playing walkup" data-room={room} data-game-phase={tableState.phase} data-revision={tableState.revision} data-tower-status={towerStatus} data-moving={moving||turning} data-can-act={canAct} data-actor={active?.id??viewer} data-local-players={JSON.stringify(locals)} style:--edge-angle={`${-overlayPose.angle*180/Math.PI}deg`} style:--edge-x={`${50+overlayPose.x/(worldHeight*aspect)*100}%`} style:--edge-y={`${50+overlayPose.z/worldHeight*100}%`}>
+ <DiceTowerBridge gameState={tableState} selected={tower} actors={tableState.players.filter(p=>!p.bot&&(p.id===viewer||locals.includes(p.id))).map(p=>p.id)} paused={!loaded||sending||moving||turning||menu} onIntent={act} onStatus={towerStatusChanged}/>
+ <main class="play-surface"><TableView {frame} tabletop walkup {gathering} {pickingSeat} onPickSeat={seat=>pickingSeat=seat} onColour={sit} onBegin={actor=>act({type:'begin',seed:randomId()},actor)} seats={places} tabletopPose={pose} tabletopTurning={turning} {choosingSeat} onSeatPlayer={i=>{if(!gathering)choosingSeat=i;}} onSeat={takeSeat} onMenu={openMenu} players={tableState.players} {selected} {runnerColumn} {canAct} externalDice={!!active?.tower} directSelection {decisionReady} choiceState={board??empty} onPair={pair} onDestination={destination} onRoll={()=>{if(canAct&&decisionReady)void act({type:'roll'});}} onStop={()=>{if(canAct&&decisionReady)void act({type:'stop'});}}/>
  {#if tableState.phase==='finished'}<button class="walkup-rematch" onclick={()=>{menuPose={...pose};fresh();}}>New game</button>{/if}</main>
  {#if error}<div class="game-error" role="alert"><span>{error}</span><button onclick={()=>repo?.retry().catch(e=>error=e.message)}>Retry</button><button aria-label="Dismiss message" onclick={()=>error=''}>×</button></div>{/if}
  {#if menu}<div class="game-shade" role="presentation"><div class="game-dialog" role="dialog" aria-modal="true" aria-label="Table menu" tabindex="-1"><button class="dialog-close" aria-label="Close table menu" onclick={()=>menu=false}>×</button><h2>{rules?'How to play':'At the table'}</h2>
   {#if rules}<p>Touch an empty seat and choose a colour. Two to four people can play. Start when everyone is ready.</p><p>Your turn rolls automatically. Choose a pairing to move the pawns. Change the pairing until you roll again or stop and save.</p><p>A roll with no usable pairing loses this turn’s progress. Stop at a summit to claim it. Three claimed summits win.</p>
-  {:else}{#if gathering&&host}<label>Companion level<select aria-label="Companion level" bind:value={companionLevel} disabled={sending||tableState.players.length>=4}>{#each BOT_LEVELS as level}<option value={level.id}>{level.label}</option>{/each}</select></label><p>{BOT_LEVELS.find(level=>level.id===companionLevel)?.description}</p><label>Companion colour<select aria-label="Companion colour" bind:value={companionColour} disabled={sending||!freeColours.length}>{#each freeColours as colour}<option value={colour.colour}>{colour.name}</option>{/each}</select></label><button disabled={sending||tableState.players.length>=4} onclick={addCompanion}>Add companion</button>{/if}{#each tableState.players.filter(p=>p.bot) as bot}<p>{bot.name} · {botLabel(bot.level)} companion</p>{/each}<label>Animation speed<select aria-label="Animation speed" bind:value={speed} onchange={saveSpeed}><option value="standard">Standard</option><option value="fast">Fast</option><option value="blazing">Blazing</option></select></label><button onclick={fullscreen}>Toggle fullscreen</button><button onclick={()=>rules=true}>How to play</button>{#if events.length}<button onclick={exportLog}>Download game log</button>{/if}<button onclick={fresh}>New game</button>{/if}
+  {:else}<DiceTowerPicker bind:value={tower} disabled={sending||tableState.protocol===1}/><p>{towerStatus}</p>{#if gathering&&host}<label>Companion level<select aria-label="Companion level" bind:value={companionLevel} disabled={sending||tableState.players.length>=4}>{#each BOT_LEVELS as level}<option value={level.id}>{level.label}</option>{/each}</select></label><p>{BOT_LEVELS.find(level=>level.id===companionLevel)?.description}</p><label>Companion colour<select aria-label="Companion colour" bind:value={companionColour} disabled={sending||!freeColours.length}>{#each freeColours as colour}<option value={colour.colour}>{colour.name}</option>{/each}</select></label><button disabled={sending||tableState.players.length>=4} onclick={addCompanion}>Add companion</button>{/if}{#each tableState.players.filter(p=>p.bot) as bot}<p>{bot.name} · {botLabel(bot.level)} companion</p>{/each}<label>Animation speed<select aria-label="Animation speed" bind:value={speed} onchange={saveSpeed}><option value="standard">Standard</option><option value="fast">Fast</option><option value="blazing">Blazing</option></select></label><button onclick={fullscreen}>Toggle fullscreen</button><button onclick={()=>rules=true}>How to play</button>{#if events.length}<button onclick={exportLog}>Download game log</button>{/if}<button onclick={fresh}>New game</button>{/if}
   <button class="primary" onclick={()=>menu=false}>Back to the table</button></div></div>{/if}
 </div>

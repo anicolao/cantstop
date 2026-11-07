@@ -23,10 +23,12 @@ export async function clickMesh(page:Page,name:string,commits=true,occurrence=0)
 export async function clickFirstPairing(page:Page){
  await settled(page);let name:string|undefined;
  await expect.poll(async()=>{
-  name=JSON.parse(await page.locator('.table-view').getAttribute('data-targets')??'[]').find((t:{name:string})=>/^\d+ \+ \d+$/.test(t.name))?.name;
-  return name;
- }).toBeTruthy();
- await clickMesh(page,name!);
+  const view=page.locator('.table-view');
+  if(await view.getAttribute('data-phase')==='decide')return true; // A forced equivalent move was already chosen.
+  name=JSON.parse(await view.getAttribute('data-targets')??'[]').find((t:{name:string})=>/^\d+ \+ \d+$/.test(t.name))?.name;
+  return !!name;
+ }).toBe(true);
+ if(await page.locator('.table-view').getAttribute('data-phase')!=='decide')await clickMesh(page,name!);
 }
 
 /** Control only the next begin intent's entropy; command IDs and Auth stay random. */

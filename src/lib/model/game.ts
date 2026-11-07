@@ -74,3 +74,16 @@ export function apply(state:State,intent:Intent):State {
   return next;
 }
 export function replay(initial:State,intents:Intent[]) { return intents.reduce(apply,structuredClone(initial)); }
+/** A forced move is determined by actual capped advances, not sum labels/order. */
+export function equivalentMove(state:State):Extract<Intent,{type:'advance'}>|null{
+ const choices=pairings(state).flatMap(p=>p.variants.map(v=>({p,v,key:JSON.stringify(Object.entries(v.moves).sort(([a],[b])=>+a-+b))})));
+ if(!choices.length||new Set(choices.map(c=>c.key)).size!==1)return null;
+ const {p,v}=choices[0];return {type:'advance',pairing:p.index,...(p.variants.length>1?{column:v.column!}:{})};
+}
+/** Physical input uses the same legal-move/bust rules as a seeded throw. */
+export function receiveDice(state:State,dice:readonly number[]):State{
+ if(dice.length!==4||!dice.every(n=>Number.isInteger(n)&&n>=1&&n<=6))throw new Error('The tower needs four d6 dice.');
+ const next=structuredClone(state);next.dice=[...dice];next.rollIndex++;next.phase='choose';next.lastOutcome='roll';
+ if(!pairings(next).some(p=>p.variants.length)){next.runners={};next.active=(state.active+1)%4;next.phase='ready';next.lastOutcome='bust';}
+ return next;
+}

@@ -10,7 +10,7 @@
  import {SEATS,assignSeats,seatPose,type SeatId,type SeatPose} from '../presentation/tabletop';
  import {COLOUR_NAMES} from '../../game/seating';
  import Die from './Die.svelte';import Plaque from './Plaque.svelte';import Inscription from './Inscription.svelte';
- let {lib,frame,walkup=false,gathering=false,pickingSeat=null,onPickSeat=()=>{},onColour=()=>{},onBegin=()=>{},choiceState,players,seats,pose,selected,runnerColumn,canAct,decisionReady,directSelection,choosingSeat,onSeatPlayer,onSeat,onPair,onDestination,onMove,onRoll,onStop,onMenu}:{lib:Library;walkup?:boolean;gathering?:boolean;pickingSeat?:SeatId|null;onPickSeat?:(seat:SeatId|null)=>void;onColour?:(colour:number)=>void;onBegin?:(actor:string)=>void;frame:Frame;choiceState:BoardState;players:{id:string;name:string;colour?:number;bot?:boolean;level?:import('../../game/companion').BotLevel}[];seats:Record<string,SeatId>;pose:SeatPose;selected:number;runnerColumn?:number;canAct:boolean;decisionReady:boolean;directSelection:boolean;choosingSeat:number|null;onSeatPlayer:(index:number)=>void;onSeat:(seat:SeatId)=>void;onPair:(pairing:number)=>void;onDestination:(column:number)=>void;onMove:()=>void;onRoll:()=>void;onStop:()=>void;onMenu:(index?:number)=>void}=$props();
+ let {lib,frame,walkup=false,gathering=false,pickingSeat=null,onPickSeat=()=>{},onColour=()=>{},onBegin=()=>{},choiceState,players,seats,pose,selected,runnerColumn,canAct,decisionReady,externalDice=false,directSelection,choosingSeat,onSeatPlayer,onSeat,onPair,onDestination,onMove,onRoll,onStop,onMenu}:{lib:Library;walkup?:boolean;gathering?:boolean;pickingSeat?:SeatId|null;onPickSeat?:(seat:SeatId|null)=>void;onColour?:(colour:number)=>void;onBegin?:(actor:string)=>void;frame:Frame;choiceState:BoardState;players:{id:string;name:string;colour?:number;bot?:boolean;level?:import('../../game/companion').BotLevel}[];seats:Record<string,SeatId>;pose:SeatPose;selected:number;runnerColumn?:number;canAct:boolean;decisionReady:boolean;externalDice?:boolean;directSelection:boolean;choosingSeat:number|null;onSeatPlayer:(index:number)=>void;onSeat:(seat:SeatId)=>void;onPair:(pairing:number)=>void;onDestination:(column:number)=>void;onMove:()=>void;onRoll:()=>void;onStop:()=>void;onMenu:(index?:number)=>void}=$props();
  const places=$derived(assignSeats(players,seats));
  const tray=slab(outline(7,2.24,.5),.22,.08),leather=slab(outline(6.65,1.9,.4),.035,.04);
  const options=$derived(pairings(choiceState)),selection=$derived(options.find(p=>p.index===selected));
@@ -69,7 +69,7 @@
   {/if}
   {#if frame.state.phase==='decide'}
    <Plaque {lib} text="STOP & SAVE" position={[-1.8,.04,ambiguous?2.15:1.35]} width={3.45} depth={1} selected disabled={!canAct||!decisionReady} onactivate={onStop}/>
-   <Plaque {lib} text="ROLL AGAIN" position={[1.8,.04,ambiguous?2.15:1.35]} width={3.45} depth={1} disabled={!canAct||!decisionReady} onactivate={onRoll}/>
+   <Plaque {lib} text={externalDice?"ROLL IN TOWER":"ROLL AGAIN"} position={[1.8,.04,ambiguous?2.15:1.35]} width={3.45} depth={1} disabled={!canAct||!decisionReady||externalDice} onactivate={onRoll}/>
   {:else if !directSelection&&frame.state.phase==='ready'}<Plaque {lib} text="ROLL DICE" position={[0,.04,1.35]} width={7} depth={1} disabled={!canAct} onactivate={onRoll}/>{/if}
   <Plaque {lib} text="TABLE MENU" position={[4.9,.04,.45]} width={2.5} depth={1.3} onactivate={onMenu}/>
   <Inscription text={frame.label.toUpperCase()} position={[0,.1,ambiguous?3.05:2.35]} width={7.1} height={.45}/>

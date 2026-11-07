@@ -4,9 +4,13 @@ service cloud.firestore {
   function signedIn(){return request.auth!=null;}
   function table(scope,room){return /databases/$(database)/documents/previews/$(scope)/tables/$(room);}
   function event(scope,room,sequence){return /databases/$(database)/documents/previews/$(scope)/tables/$(room)/events/$(string(sequence));}
+  function die(n){return n is int && n>=1 && n<=6;}
+  function sourceId(s){return s is string && s.matches('[A-Za-z0-9_-]{1,128}');}
   function intent(i){
    return i is map && (
-    (i.type=='sit' && i.keys().hasAll(['type','seat','colour']) && i.keys().hasOnly(['type','seat','colour']) && i.seat in ['south-left','south-right','east','north-right','north-left','west'] && i.colour is int && i.colour>=0 && i.colour<4)
+    (i.type=='dice-source' && i.keys().hasAll(['type','tower']) && i.keys().hasOnly(['type','tower']) && (i.tower==null || sourceId(i.tower)))
+    || (i.type=='tower-roll' && i.keys().hasAll(['type','tower','eventId','rollId','dice']) && i.keys().hasOnly(['type','tower','eventId','rollId','dice']) && sourceId(i.tower) && i.eventId is string && i.eventId.matches('[A-Za-z0-9_-]{1,64}') && i.rollId is string && i.rollId.matches('[A-Za-z0-9_-]{1,64}') && i.dice is list && i.dice.size()==4 && die(i.dice[0]) && die(i.dice[1]) && die(i.dice[2]) && die(i.dice[3]))
+    || (i.type=='sit' && i.keys().hasAll(['type','seat','colour']) && i.keys().hasOnly(['type','seat','colour']) && i.seat in ['south-left','south-right','east','north-right','north-left','west'] && i.colour is int && i.colour>=0 && i.colour<4)
     || (i.type in ['create','join'] && i.keys().hasOnly(['type','name']) && i.name is string && i.name.size()>0 && i.name.size()<=24 && i.name.matches('.*\\S.*'))
     || (i.type=='invite-bot' && i.keys().hasAll(['type','id','name']) && i.keys().hasOnly(['type','id','name','level','colour']) && (!('level' in i) || i.level in ['easy','yolo','standard','hard']) && (!('colour' in i) || (i.colour is int && i.colour>=0 && i.colour<4)) && i.id is string && i.id.matches('bot-[A-Za-z0-9_-]{1,80}') && i.name is string && i.name.size()>0 && i.name.size()<=24 && i.name.matches('.*\\S.*'))
     || (i.type=='begin' && i.keys().hasOnly(['type','seed']) && i.seed is string && i.seed.size()>0 && i.seed.size()<=96)
@@ -44,6 +48,7 @@ service cloud.firestore {
      && request.resource.data.actor is string && request.resource.data.sequence is int
      && intent(request.resource.data.intent)
      && (request.resource.data.intent.type!='invite-bot' || ((!('level' in request.resource.data.intent) || request.resource.data.version in [2,3]) && (request.resource.data.version==3 ? ('colour' in request.resource.data.intent) : !('colour' in request.resource.data.intent))))
+     && (!(request.resource.data.intent.type in ['dice-source','tower-roll']) || request.resource.data.version in [2,3])
      && (request.resource.data.intent.type!='sit' || request.resource.data.version==3)
      && sequence==string(request.resource.data.sequence)
      && getAfter(table(scope,room)).data.revision==request.resource.data.sequence

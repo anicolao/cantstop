@@ -29,7 +29,8 @@ export function sample(step:Transition,time:number,reduced=false):Frame {
  const {before,after,kind}=step;
  let pieces=staticPieces(before),state=p>=1?after:before;
  let label='Choose your climb',detail='Pair the dice, then make your move.',lightColumn:number|undefined;
- const isRoll=kind==='roll'||kind==='bust';
+ const isRoll=kind==='roll'||kind==='bust',isTower=kind.startsWith('tower');
+ if(kind==='tower'){state=after;pieces=staticPieces(after);label='Dice from your tower';detail=after.dice.join(' · ');}
  if(kind==='ready'){label='Your turn. Three runners ready.';detail='Roll the dice to begin your climb.';}
  if(kind==='advance'){
    pieces=pieces.map(piece=>{
@@ -50,7 +51,7 @@ export function sample(step:Transition,time:number,reduced=false):Frame {
    label=lightColumn?`Stop to claim ${lightColumn}`:'A little higher.';detail=lightColumn?'This summit is still at risk.':'Your saved positions have not moved.';
    if(p>=1)pieces=staticPieces(after);
  }
- if(kind==='replace'){
+ if(kind==='replace'||kind==='tower-replace'){
    const target=staticPieces(after),runners=target.filter(p=>p.runner),used=new Set<number>();
    const origins=staticPieces(before).filter(p=>p.runner);
    const matching=runners.map(piece=>{const slot=origins.findIndex((origin,i)=>!used.has(i)&&origin.column===piece.column&&origin.onBoard===piece.onBoard);if(slot>=0)used.add(slot);return slot;});
@@ -78,14 +79,14 @@ export function sample(step:Transition,time:number,reduced=false):Frame {
    if(p>=1)pieces=staticPieces(after);
    lightColumn=kind==='win'||kind==='claim'?claimed[0]:undefined;
  }
- if(kind==='bust'){
-   const drop=ramp(t,2,3.15);
+ if(kind==='bust'||kind==='tower-bust'){
+   const drop=ramp(t,kind==='tower-bust'?.1:2,3.15);
    pieces=pieces.map(piece=>piece.runner&&piece.onBoard?{...piece,position:pos(piece.position,runnerHome(piece.slot!),drop,.45),onBoard:drop<1}:piece);
-   label=t<1.9?'One more roll…':'Bust.';detail=t<1.9?'The dice have the last word.':'This turn is lost. Saved positions remain.';
+   label=!isTower&&t<1.9?'One more roll…':'Bust.';detail=!isTower&&t<1.9?'The dice have the last word.':'This turn is lost. Saved positions remain.';
    if(p>=1)pieces=staticPieces(after);
  }
  if(kind==='roll'){label=t<2?'One more roll…':'Choose your climb';detail=t<2?'Four dice. Three possibilities.':after.dice.join(' · ');}
  if(kind==='reconnect'){label=p<.7?'Rejoining your table…':'Right where you left off.';detail=p<.7?'Your roll and decision are preserved.':'The same dice. The same choice.';}
- return {state,pieces,dice:isRoll?after.dice:before.dice,diceProgress:isRoll?ramp(t,.15,2):1,kind,progress:p,lightColumn,label,detail,dim:kind==='reconnect'?.65*Math.sin(p*Math.PI):0,claims:p>.65?after.claims:before.claims};
+ return {state,pieces,dice:isRoll||isTower?after.dice:before.dice,diceProgress:isRoll?ramp(t,.15,2):1,kind,progress:p,lightColumn,label,detail,dim:kind==='reconnect'?.65*Math.sin(p*Math.PI):0,claims:p>.65?after.claims:before.claims};
 }
 export function previewPositions(state:State,moves:Positions){return Object.entries(moves).map(([c,n])=>({column:+c,position:runnerPoint(state,+c,(state.runners[+c]??state.saved[state.active][+c]??0)+n)}));}

@@ -31,7 +31,7 @@ Only these actions enter history:
   final-runner destination. Selecting again replaces only this roll’s moves.
 - `stop {}`: the active player chooses to bank progress.
 
-There are no events for dice results, positions, running totals, claims, busts,
+Digital games have no events for dice results, positions, running totals, claims, busts,
 turn changes, winners, animation completion, pair previews, camera settings, or
 speed. `replay` validates every intent in order and derives the whole table.
 Protocols 1 and 2 hash the begin seed with FNV-1a and uses the frozen seeded dice
@@ -125,3 +125,37 @@ no effect on bot decisions. The same policies drive web and tabletop turns.
 
 The calibrated two-player results and caveats are in [the AI report](ai/README.md).
 The no-bonus board policy is not exposed as a separate difficulty tier.
+
+## External physical input (protocols 2 and 3)
+
+The approved exception to seeded dice is a physical DiceTower observation:
+
+- `dice-source {tower: string | null}`: a seated human selects their source.
+  Null restores digital rolls. A source is never set on a bot or another human.
+- `tower-roll {tower,eventId,rollId,dice}`: the active human accepts four integer
+  d6 values from their selected source. IDs distinguish duplicate events, new
+  throws with identical values, and recognition changes for one physical throw.
+
+The selected source is a game input; its local preference determines which
+controlled humans submit that choice. Camera, motion, and physical seating
+preferences remain outside history. A tower-controlled opening waits in ready
+without any synthetic roll action. Digital and physical humans can share a game.
+
+A new physical throw replaces the current dice and retains previously selected
+progress. A correction for the current roll ID restores the board before that
+throw, discards its pairing, and applies the corrected dice. It increments neither
+the turn's throw count nor roll index again. Reused event IDs and completed roll
+IDs are rejected; a bank, bust, or later throw ends the correction window. Busts
+and legal moves use the same pure model as digital dice. Physical input advances
+the roll index once per new throw; any later digital throw remains deterministic
+from the original seed and that index.
+
+Observers read DiceTower's external RTDB stream without writing to it. Only
+Firestore's accepted input log is canonical for the game. Replay and imports
+require no tower connection. Protocol-1 logs reject both new intent types.
+
+The live controllers automatically submit a normal `advance` when every legal
+variant produces the same actual column increments. Reversed sums, capped
+doubles, and unusable sums are compared by their effective moves. Distinct
+last-pawn choices remain explicit. This controller behavior leaves historical
+replay and animation-lab fixtures unchanged.

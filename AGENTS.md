@@ -13,6 +13,9 @@ setup or switch to the billing-gated Identity Platform initialization API.
 
 The ordered, versioned player-intent log is canonical. Record choices, never dice
 outcomes, positions, turns, claims, scores, winners, or animation deadlines.
+The approved physical DiceTower exception records the selected source and accepted
+four-die observations with event/roll IDs; these external inputs are required for
+replay. Observe DiceTower read-only; game history still lives only in Firestore.
 New tables use protocol 2: turn-opening rolls are derived automatically, and
 pairing selections replace only the current roll until Roll again or Stop & save.
 Keep protocol-1 replay unchanged and reject mixed-version logs. Never write
