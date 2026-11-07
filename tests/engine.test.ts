@@ -28,7 +28,7 @@ describe('intent-only complete games',()=>{
  });
  test('event identities, order and protocol versions are immutable',()=>{
   const first:Event={version:1,id:'a',sequence:1,actor:'p0',intent:{type:'create',name:'Alex'}};
-  for(const change of [{...first,version:3},{...first,sequence:2},{...first,dice:[1,2,3,4]}])expect(()=>replay([change as Event])).toThrow();
+  for(const change of [{...first,version:4},{...first,sequence:2},{...first,dice:[1,2,3,4]}])expect(()=>replay([change as Event])).toThrow();
   expect(()=>replay([first,{...first,sequence:2}])).toThrow();
   expect(()=>replay([first,{...first,version:2,id:'b',sequence:2,actor:'p1',intent:{type:'join',name:'Other'}}])).toThrow();
  });

@@ -41,3 +41,5 @@
 .game-shell.tabletop .seat-list,.game-shell.tabletop .tabletop-seat-list{grid-template-columns:1fr 1fr}
 
 .game-shell.tabletop.playing .end-actions{left:var(--edge-x);top:var(--edge-y)}
+
+.walkup-rematch{position:absolute;left:var(--edge-x);top:var(--edge-y);transform:translate(-50%,-50%) rotate(var(--edge-angle));min-width:180px;min-height:64px}

@@ -1,64 +1,72 @@
-# Shared touch table
+# Walk-up touch table
 
-The tabletop view is designed for a horizontal 55-inch landscape touchscreen.
-The game remains a two-to-four-player race. Six physical places provide two
-positions on each long edge and one on each short edge; an occupied place cannot
-be taken by another player.
+Open **`/tt/`** on the horizontal 55-inch touchscreen. It immediately shows the
+board and six unoccupied places: two on each long edge and one on each short
+edge. There is no welcome form, player-name field, table code, or room dialog.
 
-Choose **New tabletop game** after entering the first player’s name, or select
-**Tabletop · shared touch screen** in Settings. `?view=tabletop` also opens this
-view directly. In the gathering, **Add player on this screen** adds another human.
-Each person chooses a physical position from the seat list. Remote invitations
-and optional companions remain available.
+1. Touch an empty seat.
+2. Choose an available colour: Teal, Gold, Ruby, or Violet. Touch either the
+   painted colour piece or its labelled plaque. Taken colours are inactive.
+3. Other people choose their seats and colours in the same way.
+4. Once two to four colours are present, **Start game** appears beside their
+   seats. Any seated colour can start.
+5. Play: the opening throw is automatic. A pairing moves the pawns immediately,
+   and can be changed until Roll again or Stop & save. The board faces the active
+   colour; their dice and controls move to their edge.
 
-During play, tap a person’s engraved nameplate to choose another empty place.
-The board faces the active player. Their ruby dice, pairing plaques, runner
-choices, Roll again, Stop & save, and Table menu sit beside their edge, facing
-that person. Other nameplates stay facing their owners. Turn changes spin the
-board by the shortest angle and move the dice dock around the perimeter. Input
-waits until movement settles. Reduced motion places it immediately; Standard,
-Fast, and Blazing also apply to the handoff.
+A new game allocates a fresh room internally and returns to the empty board.
+Reload recovers the current game and its anonymous seats automatically. People
+never enter or manage room details. During play, a colour’s badge can move that
+person to an empty physical place. Other badges continue to face their owners.
 
-Table menu opens settings near that player and rotates the dialog toward them.
-It includes fullscreen, history, and rules. Native mesh touch handlers perform
-game actions and seat choice; keyboard equivalents remain available. The shared
-renderer, materials, dice geometry, board, pieces, and game animation sampler are
-used at both 1080p and 4K. The lab’s **Tabletop** device option makes the same
-layout and handoff available for pause, scrubbing, and perspective review.
+The active colour’s **Table menu** provides speed, fullscreen, rules, game-log
+export, and New game. Its dialog appears near that person and faces the same
+edge. Standard/Fast/Blazing and reduced motion apply to board turns and dice
+delivery. The dice dock follows the inset perimeter and remains inside the
+screen throughout the handoff. The board, materials, dice, pieces, and game
+animation sampler are shared with desktop, phone, and the animation lab.
 
-## Accounts, history, and recovery
+## Identity and replay
 
-Shared-screen humans have separate anonymous Firebase Auth sessions in named
-Firebase apps. Normal `join` and move intents are written using the acting
-person’s credentials. The host does not impersonate other UIDs or acquire
-permission to control remote humans. No server, new game protocol, or Firestore
-rule expansion is needed. Companions retain their existing host-controlled path.
+Each colour has a separate, persisted anonymous Firebase Auth session. Protocol
+3 records the person’s `sit {seat,colour}` choice; display labels come from the
+colour, so no player-name input or synthetic create/join action is needed. Any
+seated colour can submit the user’s Start action. Game outcomes and forced rolls
+remain deterministic projections of the log. Earlier protocol-1/2 histories
+retain their original semantics.
 
-Profile keys and physical seat choices persist on the device per table and
-preview namespace. Reload restores identities, positions, the active person,
-and the latest board directly. Physical positions, view rotation, fullscreen,
-and motion clocks do not enter the canonical game log. A different device has
-its own layout and anonymous identity. Clearing browser storage loses recovery
-of these anonymous seats, as with the existing single-player profile.
+The room identifier is generated and retained internally, per preview namespace.
+It is absent from the address bar and user-facing controls. Anonymous sessions
+and in-game physical display adjustments persist on the device. Clearing browser
+storage loses recovery of those anonymous seats, as with the existing online
+profile. Other devices do not gain authority over the colours on this screen.
 
 ## Native render review
 
-These are actual touchscreen browser captures of four consecutive player turns,
-not concept paintings. The four-edge E2E story also checks all native action
-bounds and renders at 3840 × 2160 before verifying reload and the table menu.
+The walk-up E2E story uses native touch at 1920 × 1080 and 3840 × 2160. It checks
+that the route has no textboxes or room parameters, unavailable colours cannot be
+chosen, four distinct identities own the moves, a second colour can start,
+controls fit on all four edges, reload recovers the game, and New game resets to
+a fresh hidden room. CI publishes the full 4K capture as a review artifact.
 
-### South
+### Arrive
 
-![South player’s dice and controls](ux/tabletop/south.png)
+![Board and six empty seats](ux/tabletop/empty.png)
 
-### East
+### Choose a colour
 
-![East player’s dice, controls, and upright board](ux/tabletop/east.png)
+![Native colour selection at a physical seat](ux/tabletop/colours.png)
 
-### North
+### Ready to start
 
-![North player’s dice, controls, and upright board](ux/tabletop/north.png)
+![Four colours ready to start without player names](ux/tabletop/ready.png)
 
-### West
+### Play from every edge
 
-![West player’s dice, controls, and upright board](ux/tabletop/west.png)
+![South colour’s dice and controls](ux/tabletop/south.png)
+
+![East colour’s dice, controls, and upright board](ux/tabletop/east.png)
+
+![North colour’s dice, controls, and upright board](ux/tabletop/north.png)
+
+![West colour’s dice, controls, and upright board](ux/tabletop/west.png)

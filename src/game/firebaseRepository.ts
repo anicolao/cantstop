@@ -1,4 +1,4 @@
-import {actorConnection,newLocalIdentity} from './local-players';
+import {actorConnection} from './local-players';
 import {randomId} from './random-id';
 import {connectFirebase,previewScope} from '../firebase';
 import {appendFirestore,watchFirestore} from './firestore';
@@ -31,7 +31,6 @@ export function firebaseRepository(room:string,onEvents:(events:Event[])=>void,o
    apply(replay(events),actor,intent);
    const pending:Pending={id:randomId(),actor,expectedRevision:events.length,intent};localStorage.setItem(key,JSON.stringify(pending));await send(pending);
   },
-  async addLocalPlayer(name:string){const uid=await newLocalIdentity(room);await this.append(uid,{type:'join',name});return uid;},
   async retry(){const pending=localStorage.getItem(key);if(pending)await send(JSON.parse(pending));else{const {db}=await services;unsubscribe();unsubscribe=watchFirestore(db,previewScope,room,accept,()=>onError('Couldn’t reach the table. Try again.'));}},
   close(){closed=true;unsubscribe();}
  };

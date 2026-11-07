@@ -80,3 +80,14 @@ invariants. Firestore emulator tests cover retries, racing writes, independent
 observers, immutable logs, identities,
 concurrent joins, and namespace isolation. Browser tests use native mesh clicks,
 independent profiles, enabled animation, settings, reconnects, and replay export.
+
+
+## Protocol 3: walk-up tabletop
+
+The `/tt/` route creates a hidden room internally. Its first and subsequent seats
+are explicit `sit {seat,colour}` actions, with no name or computed snapshot fields.
+Colours and physical places must be unique, with at most four colours. The first
+seat establishes the owner; any seated colour may choose begin. Colour labels
+are derived. Automatic opening rolls, reversible current-roll choices, saving,
+busting, and victory have the same semantics as protocol 2. Existing versions
+remain replayable and a log cannot mix protocol versions.

@@ -143,15 +143,18 @@ adding or enabling a production catalog entry remains a catalog-owner action.
 
 See [docs/GAME.md](docs/GAME.md) for the intent protocol and replay guarantees.
 
-## Shared tabletop
+## Walk-up tabletop
 
-For a horizontal 55-inch touch table, enter a name and choose **New tabletop
-game**. Add two to four people on the same screen and pick their physical places:
-two on each long edge, one on each short edge. The board rotates toward the
-active player and their dice and native controls move beside that person.
-Tap a nameplate to change seats. Table menu offers oriented settings and
-fullscreen. Anonymous identities and physical places survive reload; the
-intent-only game log is unchanged. Settings and `?view=tabletop` also select this
-mode. The animation lab includes a Tabletop preview with scrubbable handoffs.
+Open `/tt/` on the horizontal 55-inch touch table. The board and six empty seats
+appear immediately. People tap a seat, choose a colour, and start when two to
+four colours are ready. No names, table creation form, or room code is required.
+Each new game allocates its room internally; reload recovers the current game.
 
-See [tabletop journeys and native captures](docs/TABLETOP.md).
+The board faces the active colour, and their dice and native controls travel to
+that edge. Tap a colour’s badge during play to change physical places. Table menu
+provides speed, fullscreen, rules, log export, and New game. Each colour has its
+own anonymous Auth identity; protocol 3 records the seat/colour choices and keeps
+outcomes replayable. Existing desktop/phone games retain protocols 1 and 2.
+
+See [the walk-up journey and native captures](docs/TABLETOP.md). The animation lab
+also includes a Tabletop preview for scrubbing the shared handoff.

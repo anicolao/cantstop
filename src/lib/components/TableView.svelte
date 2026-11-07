@@ -8,7 +8,7 @@
  import {SEATS,type SeatId,type SeatPose} from '../presentation/tabletop';
  import {FINISH} from '../presentation/finish';
  import {PIECE_SCALE,type BoardFraming} from '../presentation/layout';
- let {frame,tabletop=false,seats={},tabletopPose={x:-9.2,z:9,angle:0},tabletopTurning=false,choosingSeat=null,onSeatPlayer=()=>{},onSeat=()=>{},onMenu=()=>{},directSelection=false,decisionReady=true,choiceState,phone=false,selected=2,runnerColumn,focus='table',preset='table',lowAngle=60,players,canAct=true,orbit=false,onPair=()=>{},onDestination=()=>{},onMove=()=>{},onRoll=()=>{},onStop=()=>{}}:{frame:Frame;tabletop?:boolean;seats?:Record<string,SeatId>;tabletopPose?:SeatPose;tabletopTurning?:boolean;choosingSeat?:number|null;onSeatPlayer?:(index:number)=>void;onSeat?:(seat:SeatId)=>void;onMenu?:()=>void;directSelection?:boolean;decisionReady?:boolean;choiceState?:BoardState;phone?:boolean;selected?:number;runnerColumn?:number;focus?:string;preset?:string;lowAngle?:number;players?:{id?:string;name:string}[];canAct?:boolean;orbit?:boolean;onPair?:(n:number)=>void;onDestination?:(n:number)=>void;onMove?:()=>void;onRoll?:()=>void;onStop?:()=>void}=$props();
+ let {frame,walkup=false,gathering=false,pickingSeat=null,onPickSeat=()=>{},onColour=()=>{},onBegin=()=>{},tabletop=false,seats={},tabletopPose={x:-9.2,z:9,angle:0},tabletopTurning=false,choosingSeat=null,onSeatPlayer=()=>{},onSeat=()=>{},onMenu=()=>{},directSelection=false,decisionReady=true,choiceState,phone=false,selected=2,runnerColumn,focus='table',preset='table',lowAngle=60,players,canAct=true,orbit=false,onPair=()=>{},onDestination=()=>{},onMove=()=>{},onRoll=()=>{},onStop=()=>{}}:{frame:Frame;walkup?:boolean;gathering?:boolean;pickingSeat?:SeatId|null;onPickSeat?:(seat:SeatId|null)=>void;onColour?:(colour:number)=>void;onBegin?:(actor:string)=>void;tabletop?:boolean;seats?:Record<string,SeatId>;tabletopPose?:SeatPose;tabletopTurning?:boolean;choosingSeat?:number|null;onSeatPlayer?:(index:number)=>void;onSeat?:(seat:SeatId)=>void;onMenu?:(index?:number)=>void;directSelection?:boolean;decisionReady?:boolean;choiceState?:BoardState;phone?:boolean;selected?:number;runnerColumn?:number;focus?:string;preset?:string;lowAngle?:number;players?:{id?:string;name:string;colour?:number}[];canAct?:boolean;orbit?:boolean;onPair?:(n:number)=>void;onDestination?:(n:number)=>void;onMove?:()=>void;onRoll?:()=>void;onStop?:()=>void}=$props();
  let ready=$state(false),failure=$state(false);
  let framing=$state<BoardFraming>();
  let targets=$state<{name:string;x:number;y:number}[]>([]);
@@ -18,7 +18,7 @@
 <div class="table-view" data-table-view data-tabletop={tabletop} data-tabletop-turning={tabletopTurning} data-tabletop-pose={JSON.stringify(tabletopPose)} data-seats={JSON.stringify(seats)} data-selected-pairing={selected} data-motion-idle={frame.progress>=1} data-board-framing={JSON.stringify(framing)} data-track-finish="ivory" data-runner-colour={FINISH.runner} data-player-colours={JSON.stringify(FINISH.players)} data-piece-scale={PIECE_SCALE} data-pieces={JSON.stringify(frame.pieces)} data-targets={JSON.stringify(targets)} data-runners={JSON.stringify(frame.pieces.filter(p=>p.runner&&p.onBoard).map(p=>({id:p.id,position:p.position,opacity:p.opacity})))} data-ready={ready} data-kind={frame.kind} data-phase={frame.state.phase} data-phone={phone} data-render-quality="shared" data-piece-count={frame.pieces.length}>
  <svelte:boundary onerror={(error)=>{failure=true;console.error(error);}}>
   <Canvas toneMapping={ACESFilmicToneMapping} shadows={PCFSoftShadowMap} dpr={Math.min(window.devicePixelRatio,1.75)} renderMode="on-demand">
-   <Scene {frame} {tabletop} {seats} {tabletopPose} {choosingSeat} {onSeatPlayer} {onSeat} {onMenu} {directSelection} {decisionReady} choiceState={selectionState} {canAct} {phone} {selected} {runnerColumn} {focus} {preset} {lowAngle} {players} {orbit} {onPair} {onDestination} {onMove} {onRoll} {onStop} onFraming={(value)=>framing=value} onTargets={(value)=>targets=value} onReady={()=>ready=true}/>
+   <Scene {frame} {walkup} {gathering} {pickingSeat} {onPickSeat} {onColour} {onBegin} {tabletop} {seats} {tabletopPose} {choosingSeat} {onSeatPlayer} {onSeat} {onMenu} {directSelection} {decisionReady} choiceState={selectionState} {canAct} {phone} {selected} {runnerColumn} {focus} {preset} {lowAngle} {players} {orbit} {onPair} {onDestination} {onMove} {onRoll} {onStop} onFraming={(value)=>framing=value} onTargets={(value)=>targets=value} onReady={()=>ready=true}/>
   </Canvas>
   {#snippet failed()}<div class="load-message">This 3D scene needs WebGL.<br><small>Try a browser with hardware acceleration enabled.</small></div>{/snippet}
  </svelte:boundary>
@@ -30,7 +30,11 @@
  {#if tabletop}<span class="tabletop-announcement" aria-live="polite">{frame.label}. {frame.detail}</span>{/if}
  {#if frame.dim>0}<div class="connection-shade" style:opacity={frame.dim}></div>{/if}
  <div class="keyboard-controls" aria-label="Game controls">
-  {#if tabletop&&choosingSeat!==null}
+  {#if walkup&&gathering}
+   {#if pickingSeat}{#each ['Teal','Gold','Ruby','Violet'] as colour,i}<button disabled={!canAct||(players??[]).some(p=>p.colour===i)} onclick={()=>onColour(i)}>Choose {colour}</button>{/each}<button onclick={()=>onPickSeat(null)}>Cancel colour</button>
+   {:else}{#each SEATS as seat}<button disabled={!canAct||(players??[]).some(p=>seats[p.id??'']===seat.id)} onclick={()=>onPickSeat(seat.id)}>Take {seat.label} seat</button>{/each}{/if}
+   {#if (players?.length??0)>=2}{#each players??[] as player}<button disabled={!canAct||pickingSeat!==null} onclick={()=>onBegin(player.id!)}>Start game as {player.name}</button>{/each}{/if}
+  {:else if tabletop&&choosingSeat!==null}
    {#each SEATS as seat}<button disabled={(players??[]).some((player,index)=>index!==choosingSeat&&seats[player.id??String(index)]===seat.id)} aria-pressed={seats[players?.[choosingSeat]?.id??String(choosingSeat)]===seat.id} onclick={()=>onSeat(seat.id)}>Seat {seat.label}</button>{/each}
   {:else if frame.state.phase==='choose'||directSelection&&frame.state.phase==='decide'}
    {#each available as p}<button disabled={!canAct||!p.variants.length} aria-pressed={selected===p.index} onfocus={()=>{if(!directSelection)onPair(p.index);}} onclick={()=>onPair(p.index)}>Pair {pairingNumbers(selectionState,p,p.index===selected?runnerColumn:undefined).map(n=>`${n.number}${n.inactive?` (${n.reason})`:''}`).join(' and ')}</button>{/each}
@@ -43,7 +47,7 @@
    <button disabled={!canAct||!decisionReady} onclick={onRoll}>{frame.state.phase==='ready'?'Roll dice':'Roll again'}</button>
    {#if frame.state.phase==='decide'}<button disabled={!canAct||!decisionReady} onclick={onStop}>Stop and save</button>{/if}
   {/if}
-  {#if tabletop}{#each players??[] as player,i}<button onclick={()=>onSeatPlayer(i)}>Choose seat for {player.name}</button>{/each}<button onclick={onMenu}>Table menu</button>{/if}
+  {#if tabletop}{#each players??[] as player,i}<button onclick={()=>onSeatPlayer(i)}>Choose seat for {player.name}</button>{/each}<button onclick={()=>onMenu()}>Table menu</button>{/if}
  </div>
 </div>
 <style>

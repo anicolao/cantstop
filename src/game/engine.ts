@@ -1,8 +1,9 @@
 import {apply as advanceGame,pairings,type State as BoardState,type Intent as BoardIntent} from '../lib/model/game';
+import {COLOUR_NAMES,SEAT_IDS,type SeatId} from './seating';
 export const VERSION=2 as const;
-export type Protocol=1|2;
-export type Intent={type:'create';name:string}|{type:'join';name:string}|{type:'invite-bot';id:string;name:string}|{type:'begin';seed:string}|BoardIntent;
-export type Player={id:string;name:string;bot:boolean};
+export type Protocol=1|2|3;
+export type Intent={type:'create';name:string}|{type:'join';name:string}|{type:'invite-bot';id:string;name:string}|{type:'begin';seed:string}|{type:'sit';seat:SeatId;colour:number}|BoardIntent;
+export type Player={id:string;name:string;bot:boolean;colour?:number;seat?:SeatId};
 export type State={protocol:Protocol;choice:{before:BoardState;pairing:number;column?:number}|null;revision:number;host:string;players:Player[];phase:'gathering'|'playing'|'finished';seed:string;game:BoardState|null;winner:string|null};
 export type Event={version:Protocol;sequence:number;id:string;actor:string;intent:Intent};
 const requireChoice=(ok:unknown,message:string)=>{if(!ok)throw new Error(message);};
@@ -12,10 +13,11 @@ export function seedNumber(seed:string){let h=2166136261;for(let i=0;i<seed.leng
 export function parseIntent(value:unknown):Intent{
  requireChoice(!!value&&typeof value==='object'&&!Array.isArray(value),'Choose an action.');
  const v=value as Record<string,unknown>;
- const fields:Record<string,string[]>={create:['name'],join:['name'],'invite-bot':['id','name'],begin:['seed'],roll:[],advance:['pairing'],stop:[]};
+ const fields:Record<string,string[]>={sit:['seat','colour'],create:['name'],join:['name'],'invite-bot':['id','name'],begin:['seed'],roll:[],advance:['pairing'],stop:[]};
  requireChoice(typeof v.type==='string'&&Object.hasOwn(fields,v.type),'Choose an action.');
  const expected=['type',...fields[v.type as string],...(v.type==='advance'&&Object.hasOwn(v,'column')?['column']:[])];
  requireChoice(Object.keys(v).length===expected.length&&expected.every(k=>Object.hasOwn(v,k)),'That action has unexpected details.');
+ if(v.type==='sit')requireChoice(SEAT_IDS.includes(v.seat as SeatId)&&Number.isInteger(v.colour)&&Number(v.colour)>=0&&Number(v.colour)<4,'Choose a place and colour.');
  if('name'in v)requireChoice(typeof v.name==='string'&&v.name.trim().length>0&&v.name.trim().length<=24,'Choose a name of 1–24 characters.');
  if('id'in v)requireChoice(typeof v.id==='string'&&/^bot-[\w-]{1,80}$/.test(v.id),'Choose a companion.');
  if('seed'in v)requireChoice(typeof v.seed==='string'&&v.seed.length>0&&v.seed.length<=96,'Choose a new game.');
@@ -29,32 +31,38 @@ export function evolve(state:State,actor:string,input:Intent):{state:State;chang
  requireChoice(typeof actor==='string'&&/^[\w-]{1,128}$/.test(actor),'Take your own seat.');
  const intent=parseIntent(input),next=structuredClone(state),seat=state.players.findIndex(p=>p.id===actor),changes:BoardChange[]=[];
  const change=(before:BoardState,after:BoardState,action:BoardIntent['type'],replacement=false)=>{next.game=after;changes.push({before,after,action,replacement});};
- if(intent.type==='create'||intent.type==='join'){
+ if(intent.type==='sit'){
+  requireChoice((state.protocol===3||state.revision===0)&&state.phase==='gathering'&&seat<0&&state.players.length<4,'Choose an empty place.');
+  requireChoice(!state.players.some(p=>p.colour===intent.colour||p.seat===intent.seat),'That place or colour is taken.');
+  next.protocol=3;if(!state.revision)next.host=actor;
+  next.players.push({id:actor,name:COLOUR_NAMES[intent.colour],bot:false,colour:intent.colour,seat:intent.seat});
+ }else if(intent.type==='create'||intent.type==='join'){
+  requireChoice(state.protocol!==3,'Choose a colour on the table.');
   requireChoice(state.phase==='gathering'&&seat<0&&state.players.length<4,'That seat is not available.');
   requireChoice(intent.type==='create'?state.revision===0:state.players.length>0,'Wait for the host to open this table.');
   if(intent.type==='create')next.host=actor;
   next.players.push({id:actor,name:intent.name.trim(),bot:false});
  }else if(intent.type==='invite-bot'){
-  requireChoice(actor===state.host&&state.phase==='gathering'&&state.players.length<4&&!state.players.some(p=>p.id===intent.id),'That seat is not available.');
+  requireChoice(state.protocol!==3&&actor===state.host&&state.phase==='gathering'&&state.players.length<4&&!state.players.some(p=>p.id===intent.id),'That seat is not available.');
   next.players.push({id:intent.id,name:intent.name.trim(),bot:true});
  }else if(intent.type==='begin'){
-  requireChoice(actor===state.host&&state.players.length>=2&&['gathering','finished'].includes(state.phase),'Only the host can start once at least two players are seated.');
+  requireChoice((state.protocol===3?seat>=0:actor===state.host)&&state.players.length>=2&&['gathering','finished'].includes(state.phase),'Only the host can start once at least two players are seated.');
   next.seed=intent.seed;next.winner=null;next.phase='playing';next.choice=null;
   next.game={version:1,seed:seedNumber(intent.seed),rollIndex:0,active:0,phase:'ready',saved:[{},{},{},{}],runners:{},claims:[[],[],[],[]],dice:[1,1,1,1],lastOutcome:'none'};
  }else{
   requireChoice(state.phase==='playing'&&state.game&&seat===state.game.active,'Wait for your turn.');
   const before=state.game!;
-  const replacement=state.protocol===2&&intent.type==='advance'&&before.phase==='decide';
+  const replacement=state.protocol>=2&&intent.type==='advance'&&before.phase==='decide';
   requireChoice(!replacement||state.choice,'Roll before choosing.');
   const base=replacement?state.choice!.before:before;
   change(before,advanceGame(base,intent),intent.type,replacement);
-  next.choice=state.protocol===2&&intent.type==='advance'?{before:structuredClone(base),pairing:intent.pairing,...(intent.column===undefined?{}:{column:intent.column})}:null;
+  next.choice=state.protocol>=2&&intent.type==='advance'?{before:structuredClone(base),pairing:intent.pairing,...(intent.column===undefined?{}:{column:intent.column})}:null;
   if((intent.type==='stop'||next.game!.lastOutcome==='bust')&&next.game!.phase!=='finished')next.game!.active=(before.active+1)%state.players.length;
   if(next.game!.phase==='finished'){next.phase='finished';next.winner=state.players[before.active].id;}
  }
  // A turn opening offers no choice. Its seeded rolls (including consecutive
  // opening busts) are derived from begin/stop/roll, never appended as actions.
- if(state.protocol===2&&next.phase==='playing')while(next.game?.phase==='ready'){
+ if(state.protocol>=2&&next.phase==='playing')while(next.game?.phase==='ready'){
   const before=next.game,after=advanceGame(before,{type:'roll'});
   if(after.lastOutcome==='bust')after.active=(before.active+1)%next.players.length;
   change(before,after,'roll');next.choice=null;
@@ -67,9 +75,9 @@ export function replay(events:readonly Event[],visit?:(before:State,after:State,
  requireChoice(Array.isArray(events),'Choose a game log.');
  let state=initialState();const ids=new Set<string>();
  for(const event of events){
-  requireChoice(event&&Object.keys(event).sort().join(',')==='actor,id,intent,sequence,version'&&[1,2].includes(event.version)&&(!state.revision||event.version===state.protocol)&&event.sequence===state.revision+1&&typeof event.id==='string'&&/^[\w-]{1,128}$/.test(event.id)&&!ids.has(event.id),'This game log is not a supported, ordered intent history.');
+  requireChoice(event&&Object.keys(event).sort().join(',')==='actor,id,intent,sequence,version'&&[1,2,3].includes(event.version)&&(!state.revision||event.version===state.protocol)&&event.sequence===state.revision+1&&typeof event.id==='string'&&/^[\w-]{1,128}$/.test(event.id)&&!ids.has(event.id),'This game log is not a supported, ordered intent history.');
   if(!state.revision)state=initialState(event.version);
-  ids.add(event.id);const before=state;state=apply(state,event.actor,event.intent);visit?.(before,state,event);
+  ids.add(event.id);const before=state;state=apply(state,event.actor,event.intent);requireChoice(state.protocol===event.version,'This action does not match the game protocol.');visit?.(before,state,event);
  }
  return state;
 }

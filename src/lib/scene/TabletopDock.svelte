@@ -7,8 +7,9 @@
  import {pairingNumbers} from '../presentation/choices';
  import {FINISH} from '../presentation/finish';
  import {SEATS,assignSeats,seatPose,type SeatId,type SeatPose} from '../presentation/tabletop';
+ import {COLOUR_NAMES} from '../../game/seating';
  import Die from './Die.svelte';import Plaque from './Plaque.svelte';import Inscription from './Inscription.svelte';
- let {lib,frame,choiceState,players,seats,pose,selected,runnerColumn,canAct,decisionReady,directSelection,choosingSeat,onSeatPlayer,onSeat,onPair,onDestination,onMove,onRoll,onStop,onMenu}:{lib:Library;frame:Frame;choiceState:BoardState;players:{id:string;name:string}[];seats:Record<string,SeatId>;pose:SeatPose;selected:number;runnerColumn?:number;canAct:boolean;decisionReady:boolean;directSelection:boolean;choosingSeat:number|null;onSeatPlayer:(index:number)=>void;onSeat:(seat:SeatId)=>void;onPair:(pairing:number)=>void;onDestination:(column:number)=>void;onMove:()=>void;onRoll:()=>void;onStop:()=>void;onMenu:()=>void}=$props();
+ let {lib,frame,walkup=false,gathering=false,pickingSeat=null,onPickSeat=()=>{},onColour=()=>{},onBegin=()=>{},choiceState,players,seats,pose,selected,runnerColumn,canAct,decisionReady,directSelection,choosingSeat,onSeatPlayer,onSeat,onPair,onDestination,onMove,onRoll,onStop,onMenu}:{lib:Library;walkup?:boolean;gathering?:boolean;pickingSeat?:SeatId|null;onPickSeat?:(seat:SeatId|null)=>void;onColour?:(colour:number)=>void;onBegin?:(actor:string)=>void;frame:Frame;choiceState:BoardState;players:{id:string;name:string;colour?:number}[];seats:Record<string,SeatId>;pose:SeatPose;selected:number;runnerColumn?:number;canAct:boolean;decisionReady:boolean;directSelection:boolean;choosingSeat:number|null;onSeatPlayer:(index:number)=>void;onSeat:(seat:SeatId)=>void;onPair:(pairing:number)=>void;onDestination:(column:number)=>void;onMove:()=>void;onRoll:()=>void;onStop:()=>void;onMenu:(index?:number)=>void}=$props();
  const places=$derived(assignSeats(players,seats));
  const tray=slab(outline(7,2.24,.5),.22,.08),leather=slab(outline(6.65,1.9,.4),.035,.04);
  const options=$derived(pairings(choiceState)),selection=$derived(options.find(p=>p.index===selected));
@@ -19,12 +20,36 @@
 {#each players as player,i}
  {@const seat=seatPose(places[player.id])}
  <T.Group position={[seat.x,0,seat.z]} rotation.y={seat.angle}>
-  <T.Mesh position={[-3.6,.12,-3.25]} castShadow><T.CylinderGeometry args={[.65,.69,.16,48]}/><T.MeshPhysicalMaterial color={FINISH.players[i]} roughness={.27} metalness={.25} clearcoat={.8}/></T.Mesh>
+  <T.Mesh position={[-3.6,.12,-3.25]} castShadow><T.CylinderGeometry args={[.65,.69,.16,48]}/><T.MeshPhysicalMaterial color={FINISH.players[player.colour??i]} roughness={.27} metalness={.25} clearcoat={.8}/></T.Mesh>
   <Inscription text={player.name.trim().slice(0,1).toUpperCase()} position={[-3.6,.23,-3.25]} width={.8} height={.75}/>
-  <Plaque {lib} text={`${player.name.toUpperCase()} · ${frame.claims[i].length}/3`} sub="TOUCH TO CHOOSE YOUR SEAT" position={[0,.04,-3.25]} width={5.3} depth={1.1} selected={frame.state.active===i} onactivate={()=>onSeatPlayer(i)}/>
+  <Plaque {lib} text={`${player.name.toUpperCase()} · ${frame.claims[i].length}/3`} sub={gathering?'READY TO PLAY':'TOUCH TO CHOOSE YOUR SEAT'} interactive={!gathering} position={[0,.04,-3.25]} width={5.3} depth={1.1} selected={frame.state.active===i} onactivate={()=>onSeatPlayer(i)}/>
+  {#if walkup&&gathering}
+  <Plaque {lib} text={players.length<2?'WAITING FOR ANOTHER COLOUR':'START GAME'} position={[0,.04,1.35]} width={6} depth={1.2} disabled={!canAct||players.length<2||pickingSeat!==null} onactivate={()=>onBegin(player.id)}/>
+  <Plaque {lib} text="TABLE MENU" position={[4.9,.04,.45]} width={2.5} depth={1.3} onactivate={()=>onMenu(i)}/>
+ {/if}
  </T.Group>
 {/each}
-<T.Group name="tabletop-dock" position={[pose.x,0,pose.z]} rotation.y={pose.angle}>
+{#if walkup&&gathering}
+ {#each SEATS as seat}
+  {#if !players.some(p=>places[p.id]===seat.id)&&pickingSeat!==seat.id}
+   <T.Group position={[seat.pose.x,0,seat.pose.z]} rotation.y={seat.pose.angle}><Plaque {lib} text={`TAKE ${seat.label.toUpperCase()} SEAT`} sub="TOUCH TO CHOOSE A COLOUR" position={[0,.04,.5]} width={7.1} depth={1.45} disabled={!canAct} onactivate={()=>onPickSeat(seat.id)}/></T.Group>
+  {/if}
+ {/each}
+ {#if pickingSeat}
+  {@const pick=seatPose(pickingSeat)}
+  <T.Group position={[pick.x,0,pick.z]} rotation.y={pick.angle}>
+   {#each COLOUR_NAMES as colour,i}
+    {@const taken=players.some(p=>p.colour===i)}
+    <T.Group position={[(i%2-.5)*3.65,.04,Math.floor(i/2)*1.8-1]}>
+     <T.Mesh position={[0,.16,-.15]} castShadow name={taken||!canAct?'':`action:CHOOSE ${colour.toUpperCase()}`} onclick={(event:{stopPropagation:()=>void})=>{event.stopPropagation();if(!taken&&canAct)onColour(i);}}><T.CylinderGeometry args={[.63,.69,.2,48]}/><T.MeshPhysicalMaterial color={FINISH.players[i]} roughness={.27} metalness={.25} clearcoat={.8} transparent opacity={taken?.3:1}/></T.Mesh>
+     <Plaque {lib} text={`CHOOSE ${colour.toUpperCase()}`} position={[0,.04,.68]} width={3.35} depth={.85} disabled={taken||!canAct} onactivate={()=>onColour(i)}/>
+    </T.Group>
+   {/each}
+   <Plaque {lib} text="CANCEL COLOUR" position={[4.9,.04,.45]} width={2.5} depth={1.3} onactivate={()=>onPickSeat(null)}/>
+  </T.Group>
+ {/if}
+{/if}
+{#if !gathering}<T.Group name="tabletop-dock" position={[pose.x,0,pose.z]} rotation.y={pose.angle}>
  <T.Group position={[0,0,-1.55]}>
   <T.Mesh geometry={tray} rotation.x={-Math.PI/2} material={lib.wood} castShadow receiveShadow/>
   <T.Mesh geometry={leather} rotation.x={-Math.PI/2} position.y={.24} material={lib.leather} receiveShadow/>
@@ -48,7 +73,7 @@
   <Plaque {lib} text="TABLE MENU" position={[4.9,.04,.45]} width={2.5} depth={1.3} onactivate={onMenu}/>
   <Inscription text={frame.label.toUpperCase()} position={[0,.1,ambiguous?3.05:2.35]} width={7.1} height={.45}/>
  {/if}
-</T.Group>
+</T.Group>{/if}
 {#if choosingSeat!==null}
  {#each SEATS as seat}
   {@const occupant=players.find(p=>places[p.id]===seat.id)}

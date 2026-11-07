@@ -22,7 +22,7 @@ export async function appendFirestore(db:Firestore,scope:string,room:string,uid:
   const state=replay(events);
   if(pending.actor!==uid&&!(meta?.owner===uid&&meta.bots.includes(pending.actor)))throw new Error('Take your own seat.');
   const next=apply(state,pending.actor,intent);
-  const event:Event={version:state.protocol,id:pending.id,actor:pending.actor,sequence:revision+1,intent};
+  const event:Event={version:next.protocol,id:pending.id,actor:pending.actor,sequence:revision+1,intent};
   transaction.set(root,{owner:next.host,members:next.players.map(p=>p.id),bots:next.players.filter(p=>p.bot).map(p=>p.id),revision:revision+1});
   transaction.set(doc(root,'events',String(event.sequence)),event);
   transaction.set(doc(root,'commands',pending.id),{sequence:event.sequence});

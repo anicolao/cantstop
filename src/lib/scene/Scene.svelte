@@ -16,7 +16,7 @@
  import TabletopDock from './TabletopDock.svelte';
  import {TABLETOP_SPAN,type SeatId,type SeatPose} from '../presentation/tabletop';
  import Camera from './Camera.svelte';import Board from './Board.svelte';import Token from './Token.svelte';import Die from './Die.svelte';import Plaque from './Plaque.svelte';import Inscription from './Inscription.svelte';
- let {frame,tabletop=false,seats={},tabletopPose={x:-9.2,z:9,angle:0},choosingSeat=null,onSeatPlayer=()=>{},onSeat=()=>{},onMenu=()=>{},directSelection=false,decisionReady=true,choiceState,canAct=true,phone=false,selected=2,runnerColumn,focus='table',preset='table',lowAngle=60,players=PLAYERS,orbit=false,onPair=()=>{},onDestination=()=>{},onMove=()=>{},onRoll=()=>{},onStop=()=>{},onReady=()=>{},onTargets=()=>{},onFraming=()=>{}}:{frame:Frame;tabletop?:boolean;seats?:Record<string,SeatId>;tabletopPose?:SeatPose;choosingSeat?:number|null;onSeatPlayer?:(index:number)=>void;onSeat?:(seat:SeatId)=>void;onMenu?:()=>void;directSelection?:boolean;decisionReady?:boolean;choiceState?:BoardState;canAct?:boolean;phone?:boolean;selected?:number;runnerColumn?:number;focus?:string;preset?:string;lowAngle?:number;players?:{id?:string;name:string}[];orbit?:boolean;onPair?:(n:number)=>void;onDestination?:(n:number)=>void;onMove?:()=>void;onRoll?:()=>void;onStop?:()=>void;onReady?:()=>void;onFraming?:(framing:BoardFraming)=>void;onTargets?:(targets:{name:string;x:number;y:number}[])=>void}=$props();
+ let {frame,walkup=false,gathering=false,pickingSeat=null,onPickSeat=()=>{},onColour=()=>{},onBegin=()=>{},tabletop=false,seats={},tabletopPose={x:-9.2,z:9,angle:0},choosingSeat=null,onSeatPlayer=()=>{},onSeat=()=>{},onMenu=()=>{},directSelection=false,decisionReady=true,choiceState,canAct=true,phone=false,selected=2,runnerColumn,focus='table',preset='table',lowAngle=60,players=PLAYERS,orbit=false,onPair=()=>{},onDestination=()=>{},onMove=()=>{},onRoll=()=>{},onStop=()=>{},onReady=()=>{},onTargets=()=>{},onFraming=()=>{}}:{frame:Frame;walkup?:boolean;gathering?:boolean;pickingSeat?:SeatId|null;onPickSeat?:(seat:SeatId|null)=>void;onColour?:(colour:number)=>void;onBegin?:(actor:string)=>void;tabletop?:boolean;seats?:Record<string,SeatId>;tabletopPose?:SeatPose;choosingSeat?:number|null;onSeatPlayer?:(index:number)=>void;onSeat?:(seat:SeatId)=>void;onMenu?:(index?:number)=>void;directSelection?:boolean;decisionReady?:boolean;choiceState?:BoardState;canAct?:boolean;phone?:boolean;selected?:number;runnerColumn?:number;focus?:string;preset?:string;lowAngle?:number;players?:{id?:string;name:string;colour?:number}[];orbit?:boolean;onPair?:(n:number)=>void;onDestination?:(n:number)=>void;onMove?:()=>void;onRoll?:()=>void;onStop?:()=>void;onReady?:()=>void;onFraming?:(framing:BoardFraming)=>void;onTargets?:(targets:{name:string;x:number;y:number}[])=>void}=$props();
  const {scene,renderer,invalidate,camera,size}=useThrelte();interactivity();
  let lib=$state.raw<Library>();let ready=$state(false);
  const table=slab(outline(28,25,.9),.25,.22),mat=slab(outline(24,21,.65),.06,.09);
@@ -48,7 +48,7 @@
   return {value,position:[finalX+Math.sin(i*2.4+progress*9)*remaining*.8,.84+lift,Math.cos(i*3+progress*7)*remaining*.5] as Vec3,rotation:[remaining*(8+i*.8),[-.12,.13,-.08,.17][i]+remaining*(10-i),remaining*(6+i*.5)] as Vec3};
  }));
  $effect(()=>{
-  const pose=tabletopPose,currentTabletop=tabletop,picking=choosingSeat,seatMap=seats;
+  const pose=tabletopPose,currentTabletop=tabletop,people=players,interaction=canAct,picking=choosingSeat,picked=pickingSeat,lobby=gathering,seatMap=seats;
   const currentFrame=frame,currentPhone=phone,currentPreset=preset,currentLowAngle=lowAngle,currentFocus=focus,currentSelected=selected,currentDestination=runnerColumn;
   const width=$size.width,height=$size.height,cam=$camera;
   if(!ready)return;
@@ -94,7 +94,7 @@
   <T.Group rotation.y={tabletop?tabletopPose.angle:0} name="game-board" position={[focus==='board'?0:boardX,0,focus==='board'?0:boardZ]} scale={focus==='board'?1:boardScale}>
    <RunnerPodium {lib}/>
    <Board {lib} {closed} highlight={frame.lightColumn} preview={destinations}/>
-   {#each frame.pieces as piece (piece.id)}<Token {lib} position={piece.position} color={FINISH.players[piece.owner]} runner={piece.runner} opacity={piece.opacity} scale={piece.scale} owner={piece.owner}/>{/each}
+   {#each frame.pieces as piece (piece.id)}<Token {lib} position={piece.position} color={piece.color} runner={piece.runner} opacity={piece.opacity} scale={piece.scale} owner={players[piece.owner]?.colour??piece.owner}/>{/each}
   </T.Group>
  {/if}
  {#if focus==='table'&&!tabletop}
@@ -104,11 +104,11 @@
    <T.Group position={[x,0,z]} scale={phone&&!landscape?.65:phone?.88:1}>
     <T.Mesh position.y={.03} castShadow><T.CylinderGeometry args={[.69,.75,.13,64]}/><T.MeshPhysicalMaterial color="#b9904b" metalness={.7} roughness={.32}/></T.Mesh>
     <T.Mesh position.y={.12}><!-- Medal is horizontal, unlike a UI badge. -->
-     <T.CylinderGeometry args={[.58,.58,.07,64]}/><T.MeshPhysicalMaterial color={FINISH.players[i]} roughness={.27} metalness={.25} clearcoat={.8}/>
+     <T.CylinderGeometry args={[.58,.58,.07,64]}/><T.MeshPhysicalMaterial color={FINISH.players[player.colour??i]} roughness={.27} metalness={.25} clearcoat={.8}/>
     </T.Mesh>
     <Inscription text={player.name.trim().slice(0,1).toUpperCase()} position={[0,.23,0]} width={.75} height={.70}/>
     <Plaque {lib} text={`${player.name.toUpperCase()}   ${frame.claims[i].length}/3`} position={[0,.015,.98]} width={phone&&!landscape?3.05:phone?2.5:2.9} depth={.65} selected={frame.state.active===i} interactive={false}/>
-    {#each Array.from({length:frame.claims[i].length}) as _,j}<Token {lib} color={FINISH.players[i]} position={[(j-.5)*.6,.02,1.65]} scale={.8} owner={i}/>{/each}
+    {#each Array.from({length:frame.claims[i].length}) as _,j}<Token {lib} color={FINISH.players[player.colour??i]} position={[(j-.5)*.6,.02,1.65]} scale={.8} owner={player.colour??i}/>{/each}
    </T.Group>
   {/each}
  {/if}
@@ -150,7 +150,7 @@
    </T.Group>
   {/if}
  {/if}
- {#if tabletop&&focus==='table'}<TabletopDock {lib} {frame} choiceState={choiceState??frame.state} players={players.map((p,i)=>({...p,id:p.id??String(i)}))} {seats} pose={tabletopPose} {selected} {runnerColumn} {canAct} {decisionReady} {directSelection} {choosingSeat} {onSeatPlayer} {onSeat} {onPair} {onDestination} {onMove} {onRoll} {onStop} {onMenu}/>{/if}
+ {#if tabletop&&focus==='table'}<TabletopDock {lib} {walkup} {gathering} {pickingSeat} {onPickSeat} {onColour} {onBegin} {frame} choiceState={choiceState??frame.state} players={players.map((p,i)=>({...p,id:p.id??String(i)}))} {seats} pose={tabletopPose} {selected} {runnerColumn} {canAct} {decisionReady} {directSelection} {choosingSeat} {onSeatPlayer} {onSeat} {onPair} {onDestination} {onMove} {onRoll} {onStop} {onMenu}/>{/if}
  {#if focus==='runner'||focus==='token'}
   <T.Mesh geometry={disc} rotation.x={-Math.PI/2} scale={[2.8,4,1]} material={lib.enamel} receiveShadow/>
   {#each samplePositions as x,i}
