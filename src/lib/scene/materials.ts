@@ -70,7 +70,7 @@ export function materials(s:Surfaces){
   ivory:new MeshPhysicalMaterial({map:ivory,roughness:.48,clearcoat:.35,clearcoatRoughness:.3}),
   cloth:new MeshPhysicalMaterial({map:felt,normalMap:s.clothNormal,normalScale:new Vector2(.14,.14),roughnessMap:s.clothRough,roughness:1,sheen:.8,sheenColor:'#4b8984',sheenRoughness:.85}),
   leather:new MeshPhysicalMaterial({color:'#361a16',bumpMap:felt,bumpScale:.035,roughness:.75,clearcoat:.13}),
-  ruby:new MeshPhysicalMaterial({color:'#a01122',metalness:.05,roughness:.09,transmission:.65,thickness:1.1,ior:1.49,clearcoat:1,clearcoatRoughness:.07,attenuationColor:'#c91834',attenuationDistance:2.4}),
+  ruby:new MeshPhysicalMaterial({color:'#a01122',metalness:.05,roughness:.09,transmission:.65,thickness:1.1,ior:1.49,clearcoat:1,clearcoatRoughness:.07,attenuationColor:'#c91834',attenuationDistance:2.4,emissive:'#5c0712',emissiveIntensity:0}),
   pip:new MeshPhysicalMaterial({color:'#fff0c6',roughness:.3,clearcoat:.4}),
   textures:[lacquer,ivory,felt,maple.albedo,maple.roughness]
  };

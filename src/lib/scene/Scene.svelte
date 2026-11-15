@@ -7,6 +7,7 @@
  import {HDRLoader} from 'three/examples/jsm/loaders/HDRLoader.js';
  import {slab,outline} from './geometry';
  import {loadSurfaces,materials,disposeLibrary,type Library,type Surfaces} from './materials';
+ import {setRubyTransmission} from './render-budget';
  import type {Frame,Vec3} from '../presentation/frame';
  import {previewPositions} from '../presentation/frame';
  import {cell,BOARD_FACE,BOARD_LAYERS,LABEL_SIZE,trackLabel,type BoardFraming} from '../presentation/layout';
@@ -72,6 +73,8 @@
    }
   });return()=>cancelAnimationFrame(id);
  });
+ // Transmission re-renders the whole scene each frame; the 4K table cannot afford it.
+ $effect(()=>{if(lib){setRubyTransmission(lib.ruby,!tabletop);invalidate();}});
  onMount(()=>{
   let disposed=false,surfaces:Surfaces|undefined,environment:WebGLRenderTarget|undefined;
   scene.background=new Color('#102529');renderer.setClearColor('#102529');

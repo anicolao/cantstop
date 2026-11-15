@@ -51,6 +51,8 @@ test('four people share a walk-up touch table, choose colours, and take turns on
   await page.reload();await expect(page.locator('.game-shell')).toHaveAttribute('data-revision',String(log.length),{timeout:90000});await settled(page);expect(await page.locator('.game-shell').getAttribute('data-room')).toBe(room);expect(JSON.parse((await page.locator('.table-view').getAttribute('data-seats'))!)).toEqual(places);
   await expect(page.locator('.game-shell')).toHaveAttribute('data-can-act','true');expect(JSON.parse((await page.locator('.game-shell').getAttribute('data-local-players'))!)).toHaveLength(3);
   await page.setViewportSize({width:3840,height:2160});await settled(page);await fit(page);await page.screenshot({path:'artifacts/tabletop-4k.png'});
+  // The table's GPU cannot shade a native 4K buffer at a usable frame rate; it renders 1080p-equivalent and is scaled.
+  await expect.poll(()=>page.locator('.table-view canvas').evaluate((c:HTMLCanvasElement)=>[c.width,c.height])).toEqual([1920,1080]);
   await touch(page,'TABLE MENU',false);await expect(page.getByRole('dialog',{name:'Table menu',exact:true})).toBeVisible();
   await page.getByRole('button',{name:'New game',exact:true}).click();await settled(page);
   expect(await page.locator('.game-shell').getAttribute('data-room')).not.toBe(room);await expect(page.locator('.game-shell')).toHaveAttribute('data-revision','0');await expect(page.getByRole('textbox')).toHaveCount(0);
