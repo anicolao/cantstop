@@ -89,8 +89,8 @@
 <T.DirectionalLight position={[9,10,-10]} color="#b8dce5" intensity={.6}/>
 <T.PointLight position={[-9,5,-6]} color="#f6b25c" intensity={65} distance={24} decay={2}/>
 {#if lib && ready}
- <T.Mesh geometry={table} rotation.x={-Math.PI/2} position.y={-.75} scale={tabletop?[Math.max(44,TABLETOP_SPAN*$size.width/$size.height)/28*1.06,TABLETOP_SPAN/25*1.1,1]:1} material={lib.wood} receiveShadow/>
- <T.Mesh geometry={mat} rotation.x={-Math.PI/2} position.y={-.35} scale={tabletop?[Math.max(44,TABLETOP_SPAN*$size.width/$size.height)/24,TABLETOP_SPAN/21,1]:1} material={lib.cloth} receiveShadow/>
+ <T.Mesh geometry={table} rotation.x={-Math.PI/2} position.y={-.75} scale={tabletop?[Math.max(44,TABLETOP_SPAN*$size.width/$size.height)/28*1.06,TABLETOP_SPAN/25*1.1,1]:1} material={tabletop?lib.woodMatte:lib.wood} receiveShadow/>
+ <T.Mesh geometry={mat} rotation.x={-Math.PI/2} position.y={-.35} scale={tabletop?[Math.max(44,TABLETOP_SPAN*$size.width/$size.height)/24,TABLETOP_SPAN/21,1]:1} material={tabletop?lib.clothMatte:lib.cloth} receiveShadow/>
  {#if focus==='table'||focus==='board'}
   <T.Group rotation.y={tabletop?tabletopPose.angle:0} name="game-board" position={[focus==='board'?0:boardX,0,focus==='board'?0:boardZ]} scale={focus==='board'?1:boardScale}>
    <RunnerPodium {lib}/>

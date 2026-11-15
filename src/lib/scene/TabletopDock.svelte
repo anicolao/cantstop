@@ -56,7 +56,7 @@
   <T.Mesh geometry={leather} rotation.x={-Math.PI/2} position.y={.24} material={lib.leather} receiveShadow/>
   {#each frame.dice as value,i}
    {@const p=frame.diceProgress}{@const r=1-p}
-   <Die {lib} {value} position={[(i-1.5)*1.43+Math.sin(i*2.4+p*9)*r*.8,.84+(p<1?(Math.abs(Math.sin(p*Math.PI*3.2+i*.35))*1.4+.15)*r:0),Math.cos(i*3+p*7)*r*.5] as Vec3} rotation={[r*(8+i*.8),[-.12,.13,-.08,.17][i]+r*(10-i),r*(6+i*.5)]} selected={choosing&&selection?.dice[0].includes(i)}/>
+   <Die {lib} gloss {value} position={[(i-1.5)*1.43+Math.sin(i*2.4+p*9)*r*.8,.84+(p<1?(Math.abs(Math.sin(p*Math.PI*3.2+i*.35))*1.4+.15)*r:0),Math.cos(i*3+p*7)*r*.5] as Vec3} rotation={[r*(8+i*.8),[-.12,.13,-.08,.17][i]+r*(10-i),r*(6+i*.5)]} selected={choosing&&selection?.dice[0].includes(i)}/>
   {/each}
  </T.Group>
  {#if choosingSeat===null}

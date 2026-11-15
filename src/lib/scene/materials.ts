@@ -1,4 +1,4 @@
-import {CanvasTexture,TextureLoader,RepeatWrapping,SRGBColorSpace,MeshPhysicalMaterial,MeshStandardMaterial,Vector2,type Texture} from 'three';
+import {CanvasTexture,TextureLoader,RepeatWrapping,SRGBColorSpace,MeshPhysicalMaterial,MeshStandardMaterial,MeshLambertMaterial,MeshBasicMaterial,Vector2,type Texture} from 'three';
 import {random} from '../model/game';
 export type Surfaces={wood:Texture;woodNormal:Texture;woodRough:Texture;clothNormal:Texture;clothRough:Texture};
 export async function loadSurfaces():Promise<Surfaces>{
@@ -72,6 +72,19 @@ export function materials(s:Surfaces){
   leather:new MeshPhysicalMaterial({color:'#361a16',bumpMap:felt,bumpScale:.035,roughness:.75,clearcoat:.13}),
   ruby:new MeshPhysicalMaterial({color:'#a01122',metalness:.05,roughness:.09,transmission:.65,thickness:1.1,ior:1.49,clearcoat:1,clearcoatRoughness:.07,attenuationColor:'#c91834',attenuationDistance:2.4}),
   pip:new MeshPhysicalMaterial({color:'#fff0c6',roughness:.3,clearcoat:.4}),
+  // Tabletop finishes. See render-budget.ts for the measurements behind them.
+  // Candy-gloss dice after Got Five's tiles: saturated albedo, mirror clearcoat, a
+  // touch of self-colour, and strong environment reflections for bright edges.
+  rubyGloss:new MeshPhysicalMaterial({color:'#d3132f',roughness:.12,metalness:0,clearcoat:1,clearcoatRoughness:.03,envMapIntensity:3,emissive:'#d3132f',emissiveIntensity:.08}),
+  // Unlit pips with a dark rim stay crisp under tone mapping.
+  pipGloss:new MeshBasicMaterial({color:'#fffaf0',toneMapped:false}),
+  pipRim:new MeshBasicMaterial({color:'#2a0207',toneMapped:false}),
+  // The felt and table fill the screen; Lambert keeps their lights, normal maps and shadows but skips IBL.
+  woodMatte:new MeshLambertMaterial({map:s.wood,normalMap:s.woodNormal,normalScale:new Vector2(.14,.14),color:'#986742'}),
+  // The physical felt's visible colour came almost entirely from its teal sheen and the environment,
+  // not its near-black map, so the matte felt is a solid colour fitted to the rendered result
+  // (sRGB [38,49,36] against [33,47,38]) that still warms under the point light.
+  clothMatte:new MeshLambertMaterial({color:'#344240',normalMap:s.clothNormal,normalScale:new Vector2(.14,.14)}),
   textures:[lacquer,ivory,felt,maple.albedo,maple.roughness]
  };
 }
